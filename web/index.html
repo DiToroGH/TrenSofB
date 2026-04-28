@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SofB Train — Web</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="header">
+    <h1>SofB Train</h1>
+    <p class="subtitle">Misma base que la app de escritorio</p>
+  </header>
+
+  <div class="toolbar-strip" role="toolbar" aria-label="Acciones principales">
+    <div class="toolbar-inner">
+      <button type="button" id="btn-gestion" class="btn secondary">Gestionar personas</button>
+      <button type="button" id="btn-refrescar" class="btn secondary">Refrescar</button>
+      <button type="button" id="btn-generar" class="btn primary">Generar asignación de hoy</button>
+      <button type="button" id="btn-cerrar" class="btn danger">Cerrar día (preparar mañana)</button>
+    </div>
+  </div>
+
+  <main class="layout">
+    <p id="msg" class="msg" role="status" aria-live="polite"></p>
+
+    <section class="card">
+      <h2>Hoy</h2>
+      <p class="meta">Fecha estado: <strong id="fecha">—</strong></p>
+      <p id="resumen-hoy" class="resumen">Cargando…</p>
+      <div class="mensaje-wrap">
+        <label for="mensaje-turno">Mensaje de turno</label>
+        <textarea id="mensaje-turno" readonly rows="6"></textarea>
+        <button type="button" id="btn-copiar" class="btn secondary">Copiar mensaje</button>
+      </div>
+    </section>
+
+    <div class="grid-2">
+      <section class="card">
+        <h2>Disponibilidad (hoy)</h2>
+        <p class="hint">Marcá quiénes pueden ir. Por defecto todos disponibles.</p>
+        <div id="checks" class="checks"></div>
+      </section>
+
+      <section class="card">
+        <h2>Asignaciones</h2>
+        <ul id="lista-asignaciones" class="lista"></ul>
+        <p class="no-disp"><span class="label">No disponibles hoy:</span> <span id="no-disp">—</span></p>
+      </section>
+    </div>
+
+    <section class="card muted">
+      <h2>Referencia</h2>
+      <p><strong>Conductores:</strong> <span id="conductores-ref">—</span></p>
+      <p><strong>Orden acompañantes:</strong> <span id="orden-ref">—</span></p>
+    </section>
+  </main>
+
+  <dialog id="dlg-gestion" class="dlg-gestion">
+    <div class="dlg-gestion-inner">
+      <h2 class="dlg-title">Gestión de conductores y acompañantes</h2>
+      <p class="dlg-hint">Altas, bajas, edición y orden (misma base que el escritorio).</p>
+
+      <div class="gestion-tabs" role="tablist">
+        <button type="button" class="tab active" role="tab" aria-selected="true" data-panel="panel-cond">Conductores</button>
+        <button type="button" class="tab" role="tab" aria-selected="false" data-panel="panel-acomp">Acompañantes</button>
+      </div>
+
+      <div id="panel-cond" class="gestion-panel" role="tabpanel">
+        <label class="sr-only" for="filtro-cond">Filtrar conductores</label>
+        <input type="search" id="filtro-cond" class="filtro" placeholder="Filtrar…" autocomplete="off" />
+        <ul id="lista-cond" class="persona-list" aria-label="Lista de conductores"></ul>
+        <p id="meta-cond" class="gestion-meta"></p>
+        <label class="sr-only" for="nombre-cond">Nombre conductor</label>
+        <input type="text" id="nombre-cond" class="nombre-input" placeholder="Nombre (Enter = alta rápida)" />
+        <div class="btn-row">
+          <button type="button" id="cond-alta" class="btn secondary">Alta</button>
+          <button type="button" id="cond-editar" class="btn secondary">Editar</button>
+          <button type="button" id="cond-baja" class="btn danger">Baja</button>
+          <span class="btn-sep" aria-hidden="true"></span>
+          <button type="button" id="cond-subir" class="btn secondary">Subir</button>
+          <button type="button" id="cond-bajar" class="btn secondary">Bajar</button>
+          <button type="button" id="cond-inicio" class="btn secondary">Inicio</button>
+          <button type="button" id="cond-final" class="btn secondary">Final</button>
+        </div>
+      </div>
+
+      <div id="panel-acomp" class="gestion-panel" role="tabpanel" hidden>
+        <label class="sr-only" for="filtro-acomp">Filtrar acompañantes</label>
+        <input type="search" id="filtro-acomp" class="filtro" placeholder="Filtrar…" autocomplete="off" />
+        <ul id="lista-acomp" class="persona-list" aria-label="Lista de acompañantes"></ul>
+        <p id="meta-acomp" class="gestion-meta"></p>
+        <label class="sr-only" for="nombre-acomp">Nombre acompañante</label>
+        <input type="text" id="nombre-acomp" class="nombre-input" placeholder="Nombre (Enter = alta rápida)" />
+        <div class="btn-row">
+          <button type="button" id="acomp-alta" class="btn secondary">Alta</button>
+          <button type="button" id="acomp-editar" class="btn secondary">Editar</button>
+          <button type="button" id="acomp-baja" class="btn danger">Baja</button>
+          <span class="btn-sep" aria-hidden="true"></span>
+          <button type="button" id="acomp-subir" class="btn secondary">Subir</button>
+          <button type="button" id="acomp-bajar" class="btn secondary">Bajar</button>
+          <button type="button" id="acomp-inicio" class="btn secondary">Inicio</button>
+          <button type="button" id="acomp-final" class="btn secondary">Final</button>
+        </div>
+        <div class="masiva-block">
+          <label for="masiva-acomp">Carga masiva (un nombre por línea)</label>
+          <textarea id="masiva-acomp" rows="5" class="masiva-ta" placeholder="Pegá nombres, uno por línea"></textarea>
+          <button type="button" id="acomp-masiva" class="btn primary">Cargar</button>
+        </div>
+      </div>
+
+      <p id="msg-gestion" class="msg-gestion" role="status"></p>
+      <div class="dlg-footer">
+        <button type="button" id="dlg-gestion-cerrar" class="btn secondary">Cerrar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="/static/app.js"></script>
+  <script src="/static/gestion_personas.js"></script>
+</body>
+</html>

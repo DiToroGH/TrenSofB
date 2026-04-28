@@ -1,0 +1,15 @@
+.git
+__pycache__
+**/__pycache__
+*.py[cod]
+.pytest_cache
+.cursor
+terminals
+agent-transcripts
+*.code-workspace
+.env
+.env.*
+tests
+estado_tren.json
+datos_tren.db
+Tren SofB.code-workspace

@@ -1,0 +1,15 @@
+# Uso: docker compose up --build
+# Web: http://localhost:8000  ·  Datos: volumen Docker en /data
+
+services:
+  tren-web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      TREN_DATA_DIR: /data
+    volumes:
+      - tren_data:/data
+
+volumes:
+  tren_data:

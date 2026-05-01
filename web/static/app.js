@@ -13,7 +13,17 @@
   let lastOrdenSerialized = null;
 
   function apiFetch(url, options) {
-    return fetch(url, Object.assign({ cache: "no-store" }, options || {}));
+    const fetchOptions = Object.assign({ cache: "no-store" }, options || {});
+    
+    // Agregar header de autorización si existe token
+    if (auth && auth.token) {
+      if (!fetchOptions.headers) {
+        fetchOptions.headers = {};
+      }
+      fetchOptions.headers['Authorization'] = `Bearer ${auth.token}`;
+    }
+    
+    return fetch(url, fetchOptions);
   }
 
   function setMsg(text, kind) {
@@ -22,6 +32,14 @@
   }
 
   async function parseError(r) {
+    // Si es 401 o 403, hacer logout
+    if (r.status === 401 || r.status === 403) {
+      if (auth) {
+        auth.logout();
+      }
+      throw new Error("Sesión expirada o sin permisos. Por favor inicia sesión nuevamente.");
+    }
+    
     try {
       const j = await r.json();
       if (j.detail) {

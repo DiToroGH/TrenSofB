@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import sqlite3
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from infra import repositories as repo
 from infra.state_sync import sincronizar_acompaniantes_en_estado_y_guardar
+from core.auth import TokenData, get_current_user, is_admin
 
 router = APIRouter(prefix="/personas", tags=["personas"])
 
@@ -95,7 +96,9 @@ def listar_conductores():
 
 
 @router.post("/conductores", response_model=PersonaOut, status_code=201)
-def alta_conductor(body: PersonaNombreBody):
+def alta_conductor(body: PersonaNombreBody, current_user: TokenData = Depends(get_current_user)):
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Solo administradores pueden agregar conductores")
     try:
         repo.insertar_persona(_tabla_conductores(), body.nombre.strip())
     except sqlite3.IntegrityError:
@@ -106,7 +109,9 @@ def alta_conductor(body: PersonaNombreBody):
 
 
 @router.patch("/conductores/{persona_id}", response_model=PersonaOut)
-def editar_conductor(persona_id: int, body: PersonaNombreUpdateBody):
+def editar_conductor(persona_id: int, body: PersonaNombreUpdateBody, current_user: TokenData = Depends(get_current_user)):
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Solo administradores pueden editar conductores")
     try:
         repo.editar_persona(_tabla_conductores(), persona_id, body.nombre.strip())
     except sqlite3.IntegrityError:
@@ -118,17 +123,23 @@ def editar_conductor(persona_id: int, body: PersonaNombreUpdateBody):
 
 
 @router.delete("/conductores/{persona_id}", status_code=204)
-def borrar_conductor(persona_id: int):
+def borrar_conductor(persona_id: int, current_user: TokenData = Depends(get_current_user)):
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Solo administradores pueden eliminar conductores")
     repo.borrar_persona(_tabla_conductores(), persona_id)
 
 
 @router.post("/conductores/mover", status_code=204)
-def mover_conductor(body: MoverBody):
+def mover_conductor(body: MoverBody, current_user: TokenData = Depends(get_current_user)):
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Solo administradores pueden mover conductores")
     _mover_vecino(_tabla_conductores(), body.persona_id, body.direccion)
 
 
 @router.post("/conductores/mover-extremo", status_code=204)
-def mover_conductor_extremo(body: MoverExtremoBody):
+def mover_conductor_extremo(body: MoverExtremoBody, current_user: TokenData = Depends(get_current_user)):
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Solo administradores pueden mover conductores")
     _mover_extremo(_tabla_conductores(), body.persona_id, body.al_inicio)
 
 
@@ -141,7 +152,9 @@ def listar_acompaniantes():
 
 
 @router.post("/acompaniantes", response_model=PersonaOut, status_code=201)
-def alta_acompaniante(body: PersonaNombreBody):
+def alta_acompaniante(body: PersonaNombreBody, current_user: TokenData = Depends(get_current_user)):
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Solo administradores pueden agregar acompañantes")
     try:
         repo.insertar_persona(_tabla_acompaniantes(), body.nombre.strip())
     except sqlite3.IntegrityError:
@@ -153,7 +166,9 @@ def alta_acompaniante(body: PersonaNombreBody):
 
 
 @router.patch("/acompaniantes/{persona_id}", response_model=PersonaOut)
-def editar_acompaniante(persona_id: int, body: PersonaNombreUpdateBody):
+def editar_acompaniante(persona_id: int, body: PersonaNombreUpdateBody, current_user: TokenData = Depends(get_current_user)):
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Solo administradores pueden editar acompañantes")
     try:
         repo.editar_persona(_tabla_acompaniantes(), persona_id, body.nombre.strip())
     except sqlite3.IntegrityError:
@@ -166,25 +181,33 @@ def editar_acompaniante(persona_id: int, body: PersonaNombreUpdateBody):
 
 
 @router.delete("/acompaniantes/{persona_id}", status_code=204)
-def borrar_acompaniante(persona_id: int):
+def borrar_acompaniante(persona_id: int, current_user: TokenData = Depends(get_current_user)):
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Solo administradores pueden eliminar acompañantes")
     repo.borrar_persona(_tabla_acompaniantes(), persona_id)
     sincronizar_acompaniantes_en_estado_y_guardar()
 
 
 @router.post("/acompaniantes/mover", status_code=204)
-def mover_acompaniante(body: MoverBody):
+def mover_acompaniante(body: MoverBody, current_user: TokenData = Depends(get_current_user)):
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Solo administradores pueden mover acompañantes")
     _mover_vecino(_tabla_acompaniantes(), body.persona_id, body.direccion)
     sincronizar_acompaniantes_en_estado_y_guardar()
 
 
 @router.post("/acompaniantes/mover-extremo", status_code=204)
-def mover_acompaniante_extremo(body: MoverExtremoBody):
+def mover_acompaniante_extremo(body: MoverExtremoBody, current_user: TokenData = Depends(get_current_user)):
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Solo administradores pueden mover acompañantes")
     _mover_extremo(_tabla_acompaniantes(), body.persona_id, body.al_inicio)
     sincronizar_acompaniantes_en_estado_y_guardar()
 
 
 @router.post("/acompaniantes/carga-masiva", response_model=CargaMasivaResponse)
-def carga_masiva_acompaniantes(body: CargaMasivaBody):
+def carga_masiva_acompaniantes(body: CargaMasivaBody, current_user: TokenData = Depends(get_current_user)):
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Solo administradores pueden cargar masivamente acompañantes")
     candidatos = [x.strip() for x in body.texto.splitlines() if x.strip()]
     agregados = 0
     duplicados = 0

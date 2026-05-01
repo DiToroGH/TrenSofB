@@ -1,17 +1,13 @@
 {
-  "fecha": "2026-04-27",
+  "fecha": "2026-04-30",
   "acompaniantes_orden": [
     "Monicaj",
-    "91Jiinx",
     "Flo291990",
-    "Lambokini Mary",
-    "Battlekini Rose",
     "Akshan5",
     "Borgeess",
     "Lizzard147765",
     "Solely1",
     "leofarina",
-    "Mando1orian",
     "annapine",
     "Suki100",
     "AllyCat83",
@@ -76,68 +72,66 @@
     "Orobouros",
     "jcnasc",
     "MGusmao",
-    "Lexcon1977"
-  ],
-  "no_disponibles_hoy": [
+    "Lexcon1977",
+    "Lambokini Mary",
+    "Battlekini Rose",
     "91Jiinx"
   ],
+  "no_disponibles_hoy": [],
   "asignaciones_hoy": [
     [
-      "Major Stay Puft",
+      "DuRioKini",
       "Monicaj"
     ],
     [
-      "LT Chipman",
+      "chalkini",
       "Flo291990"
     ],
     [
-      "Di Toro",
-      "Lambokini Mary"
-    ],
-    [
-      "DuRioKini",
-      "Battlekini Rose"
-    ],
-    [
-      "chalkini",
+      "JA5466",
       "Akshan5"
     ],
     [
-      "JA5466",
+      "Chewbacca 85",
       "Borgeess"
     ],
     [
-      "Chewbacca 85",
+      "RebelRum",
       "Lizzard147765"
     ],
     [
-      "RebelRum",
+      "Krazy143",
       "Solely1"
     ],
     [
-      "Krazy143",
-      "leofarina"
-    ],
-    [
       "RebelKat",
-      "Mando1orian"
+      "leofarina"
     ],
     [
       "Sire Lance",
       "annapine"
+    ],
+    [
+      "Major Stay Puft",
+      "Suki100"
+    ],
+    [
+      "LT Chipman",
+      "AllyCat83"
+    ],
+    [
+      "Di Toro",
+      "Floorkini"
     ]
   ],
   "disponibles_hoy": [
     "Monicaj",
     "Flo291990",
-    "Lambokini Mary",
-    "Battlekini Rose",
     "Akshan5",
     "Borgeess",
     "Lizzard147765",
     "Solely1",
     "leofarina",
-    "Mando1orian",
     "annapine",
     "Suki100",
     "AllyCat83",
@@ -202,6 +196,9 @@
     "Orobouros",
     "jcnasc",
     "MGusmao",
-    "Lexcon1977"
+    "Lexcon1977",
+    "Lambokini Mary",
+    "Battlekini Rose",
+    "91Jiinx"
   ]
 }

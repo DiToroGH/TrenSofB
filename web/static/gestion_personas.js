@@ -30,7 +30,29 @@
     msgG.className = "msg-gestion" + (kind === "error" ? " error" : "");
   }
 
+  function apiFetch(url, options) {
+    const fetchOptions = Object.assign({}, options || {});
+    
+    // Agregar header de autorización si existe token
+    if (auth && auth.token) {
+      if (!fetchOptions.headers) {
+        fetchOptions.headers = {};
+      }
+      fetchOptions.headers['Authorization'] = `Bearer ${auth.token}`;
+    }
+    
+    return fetch(url, fetchOptions);
+  }
+
   async function parseError(r) {
+    // Si es 401 o 403, hacer logout
+    if (r.status === 401 || r.status === 403) {
+      if (auth) {
+        auth.logout();
+      }
+      throw new Error("Sesión expirada o sin permisos. Por favor inicia sesión nuevamente.");
+    }
+    
     try {
       const j = await r.json();
       if (j.detail) {
@@ -48,13 +70,13 @@
   }
 
   async function fetchConductores() {
-    const r = await fetch("/personas/conductores");
+    const r = await apiFetch("/personas/conductores");
     if (!r.ok) throw new Error(await parseError(r));
     conductores = await r.json();
   }
 
   async function fetchAcompaniantes() {
-    const r = await fetch("/personas/acompaniantes");
+    const r = await apiFetch("/personas/acompaniantes");
     if (!r.ok) throw new Error(await parseError(r));
     acompaniantes = await r.json();
   }
@@ -137,7 +159,7 @@
       setMsgG("Ingresá un nombre.", "error");
       return;
     }
-    const r = await fetch(basePath(tipo), {
+    const r = await apiFetch(basePath(tipo), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nombre: nombre }),
@@ -165,7 +187,7 @@
       setMsgG("Ingresá el nuevo nombre.", "error");
       return;
     }
-    const r = await fetch(basePath(tipo) + "/" + id, {
+    const r = await apiFetch(basePath(tipo) + "/" + id, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nombre: nombre }),
@@ -182,7 +204,7 @@
     var items = tipo === "cond" ? conductores : acompaniantes;
     var row = items.filter(function (x) { return x.id === id; })[0];
     if (!window.confirm("¿Eliminar '" + (row ? row.nombre : id) + "'?")) return;
-    const r = await fetch(basePath(tipo) + "/" + id, { method: "DELETE" });
+    const r = await apiFetch(basePath(tipo) + "/" + id, { method: "DELETE" });
     if (!r.ok) throw new Error(await parseError(r));
     if (tipo === "cond") {
       selCondId = null;
@@ -199,7 +221,7 @@
       setMsgG("Seleccioná un registro.", "error");
       return;
     }
-    const r = await fetch(basePath(tipo) + "/mover", {
+    const r = await apiFetch(basePath(tipo) + "/mover", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ persona_id: id, direccion: direccion }),
@@ -213,7 +235,7 @@
       setMsgG("Seleccioná un registro.", "error");
       return;
     }
-    const r = await fetch(basePath(tipo) + "/mover-extremo", {
+    const r = await apiFetch(basePath(tipo) + "/mover-extremo", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ persona_id: id, al_inicio: alInicio }),
@@ -227,7 +249,7 @@
       setMsgG("No hay nombres para cargar.", "error");
       return;
     }
-    const r = await fetch("/personas/acompaniantes/carga-masiva", {
+    const r = await apiFetch("/personas/acompaniantes/carga-masiva", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ texto: texto }),

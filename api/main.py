@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -20,12 +20,43 @@ from core.services import (
     generar_texto_turno,
     resolver_pareja_cierre,
 )
+from core.auth import (
+    authenticate_user,
+    create_access_token,
+    verify_token,
+    TokenData,
+    is_admin,
+    get_current_user,
+)
 from api.personas import router as personas_router
 from infra import repositories as repo
 from infra.state_sync import fusionar_estado_acompaniantes, sincronizar_acompaniantes_en_estado_y_guardar
 
 WEB_ROOT = Path(__file__).resolve().parent.parent / "web"
 STATIC_DIR = WEB_ROOT / "static"
+
+
+# Dependencia para validar que el usuario es administrador
+async def get_admin_user(current_user: TokenData = Depends(get_current_user)) -> TokenData:
+    """Verificar que el usuario es administrador."""
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Solo administradores pueden acceder a esto")
+    return current_user
+
+
+# Modelos para autenticación
+class LoginRequest(BaseModel):
+    """Credenciales de login."""
+    username: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    """Respuesta de login."""
+    access_token: str
+    token_type: str
+    user_type: str
+    username: str
 
 
 @asynccontextmanager
@@ -87,6 +118,37 @@ def health():
     return {"status": "ok"}
 
 
+@app.post("/login", response_model=LoginResponse)
+def login(credentials: LoginRequest):
+    """Endpoint de login para obtener JWT token."""
+    token_data = authenticate_user(credentials.username, credentials.password)
+    if not token_data:
+        raise HTTPException(status_code=401, detail="Usuario o contraseña inválidos")
+    
+    access_token = create_access_token(token_data)
+    return LoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user_type=token_data.user_type,
+        username=token_data.username,
+    )
+
+
+@app.post("/logout")
+def logout():
+    """Endpoint de logout (simplemente retorna OK, el cliente elimina el token)."""
+    return {"message": "Sesión cerrada"}
+
+
+@app.get("/me")
+def get_current_user_info(current_user: TokenData = Depends(get_current_user)):
+    """Obtener información del usuario actual."""
+    return {
+        "username": current_user.username,
+        "user_type": current_user.user_type,
+    }
+
+
 @app.get("/")
 def index():
     index_path = WEB_ROOT / "index.html"
@@ -96,7 +158,7 @@ def index():
 
 
 @app.get("/estado/hoy", response_model=EstadoHoyResponse)
-def estado_hoy(response: Response):
+def estado_hoy(response: Response, current_user: TokenData = Depends(get_current_user)):
     response.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     estado = sincronizar_acompaniantes_en_estado_y_guardar()
@@ -130,7 +192,7 @@ def estado_hoy(response: Response):
 
 
 @app.post("/asignacion/generar", response_model=GenerarAsignacionResponse)
-def generar_asignacion_endpoint(body: GenerarAsignacionBody):
+def generar_asignacion_endpoint(body: GenerarAsignacionBody, admin_user: TokenData = Depends(get_admin_user)):
     estado = repo.cargar_estado()
     fusionar_estado_acompaniantes(estado)
 
@@ -173,7 +235,7 @@ def generar_asignacion_endpoint(body: GenerarAsignacionBody):
 
 
 @app.post("/dia/cerrar", response_model=CerrarDiaResponse)
-def cerrar_dia():
+def cerrar_dia(admin_user: TokenData = Depends(get_admin_user)):
     estado = repo.cargar_estado()
     fusionar_estado_acompaniantes(estado)
     conductores = repo.cargar_conductores()

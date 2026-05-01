@@ -49,11 +49,11 @@ def generar_texto_turno(
         respaldo_1 = circulo[(idx + 1) % n]
         respaldo_2 = circulo[(idx + 2) % n]
     return (
-        f'Hello "{conductor}" , tomorrow it\'s your turn to drive the train, and your VIP passenger is '
+        f'Hello {conductor} , tomorrow it\'s your turn to drive the train, and your VIP passenger is '
         f'"{acomp}" . Try to contact him ahead of time and coordinate the schedule so he\'ll be ready. '
-        f'If you don\'t get a response from "{acomp}", the replacement is "{respaldo_1}". '
-        f'If neither of them responds, the third person to contact is "{respaldo_2}". '
-        "If all three fail, let me know 😅"
+        f'If you don\'t get a response from {acomp}, the replacement is {respaldo_1}. '
+        f'If neither of them responds, the third person to contact is {respaldo_2}. '
+        "If all three fail, let me know 😅. Di Toro."
     )
 
 

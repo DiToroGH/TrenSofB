@@ -8,6 +8,13 @@ from api.main import app
 from infra import repositories as repo
 
 
+def _admin_auth_headers(client: TestClient) -> dict[str, str]:
+    r = client.post("/login", json={"username": "admin", "password": "Germany10"})
+    assert r.status_code == 200, r.text
+    token = r.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
 class TestApiAislada(unittest.TestCase):
     def setUp(self):
         self._prev_db = repo.DB_FILE
@@ -38,11 +45,12 @@ class TestApiAislada(unittest.TestCase):
         self.assertEqual(r3.status_code, 200)
 
     def test_generar_y_cerrar(self):
-        r = self.client.get("/estado/hoy")
+        h = _admin_auth_headers(self.client)
+        r = self.client.get("/estado/hoy", headers=h)
         self.assertEqual(r.status_code, 200)
         self.assertGreater(len(r.json()["conductores"]), 0)
 
-        r = self.client.post("/asignacion/generar", json={})
+        r = self.client.post("/asignacion/generar", json={}, headers=h)
         self.assertEqual(r.status_code, 200)
         body = r.json()
         self.assertGreater(len(body["asignaciones"]), 0)
@@ -50,16 +58,17 @@ class TestApiAislada(unittest.TestCase):
         self.assertIsInstance(body["mensaje_turno"], (str, type(None)))
         self.assertTrue(body["mensaje_turno"])
 
-        r = self.client.post("/dia/cerrar")
+        r = self.client.post("/dia/cerrar", headers=h)
         self.assertEqual(r.status_code, 200)
         self.assertIn("mensaje", r.json())
 
-        r = self.client.get("/estado/hoy")
+        r = self.client.get("/estado/hoy", headers=h)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["asignaciones"], [])
 
     def test_generar_con_disponibles_vacio_sin_acompaniante(self):
-        r = self.client.post("/asignacion/generar", json={"disponibles": []})
+        h = _admin_auth_headers(self.client)
+        r = self.client.post("/asignacion/generar", json={"disponibles": []}, headers=h)
         self.assertEqual(r.status_code, 200)
         body = r.json()
         for item in body["asignaciones"]:
@@ -74,14 +83,46 @@ class TestApiAislada(unittest.TestCase):
         self.assertIn("nombre", data[0])
 
     def test_personas_acompanientes_alta_y_baja(self):
+        h = _admin_auth_headers(self.client)
         r = self.client.post(
             "/personas/acompaniantes",
             json={"nombre": "Test Web SofB XY"},
+            headers=h,
         )
         self.assertEqual(r.status_code, 201)
         pid = r.json()["id"]
-        r2 = self.client.delete(f"/personas/acompaniantes/{pid}")
+        r2 = self.client.delete(f"/personas/acompaniantes/{pid}", headers=h)
         self.assertEqual(r2.status_code, 204)
+
+    def test_estado_hoy_conductores_items_alineados(self):
+        h = _admin_auth_headers(self.client)
+        r = self.client.get("/estado/hoy", headers=h)
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertIn("conductores_items", body)
+        items = body["conductores_items"]
+        nombres = body["conductores"]
+        self.assertEqual(len(items), len(nombres))
+        for i, row in enumerate(items):
+            self.assertIn("id", row)
+            self.assertIn("nombre", row)
+            self.assertEqual(row["nombre"], nombres[i])
+
+    def test_mover_conductor_al_final_manual(self):
+        h = _admin_auth_headers(self.client)
+        r = self.client.get("/estado/hoy", headers=h)
+        items = r.json()["conductores_items"]
+        self.assertGreaterEqual(len(items), 2)
+        primero_id = items[0]["id"]
+        r2 = self.client.post(
+            "/personas/conductores/mover-extremo",
+            json={"persona_id": primero_id, "al_inicio": False},
+            headers=h,
+        )
+        self.assertEqual(r2.status_code, 204)
+        r3 = self.client.get("/estado/hoy", headers=h)
+        nombres_despues = r3.json()["conductores"]
+        self.assertEqual(nombres_despues[-1], items[0]["nombre"])
 
 
 if __name__ == "__main__":

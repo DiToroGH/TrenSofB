@@ -7,6 +7,9 @@ class AuthManager {
     this.token = localStorage.getItem('access_token');
     this.userType = localStorage.getItem('user_type');
     this.username = localStorage.getItem('username');
+    /** Evita listeners duplicados al alternar login / pantalla principal. */
+    this._logoutWired = false;
+    this._loginFormWired = false;
     this.init();
   }
 
@@ -32,6 +35,8 @@ class AuthManager {
   }
 
   setupLoginForm() {
+    if (this._loginFormWired) return;
+    this._loginFormWired = true;
     const form = document.getElementById('login-form');
     form.addEventListener('submit', (e) => this.handleLogin(e));
   }
@@ -85,23 +90,26 @@ class AuthManager {
     document.getElementById('user-display').textContent = 
       `${this.username} (${userType})`;
     
-    // Botón de logout
-    document.getElementById('btn-logout').addEventListener('click', () => {
-      this.logout();
-    });
+    if (!this._logoutWired) {
+      this._logoutWired = true;
+      document.getElementById('btn-logout').addEventListener('click', () => {
+        this.logout();
+      });
+    }
 
     // Mostrar/ocultar botones según el tipo de usuario
     const genBtn = document.getElementById('btn-generar');
     const cerrarBtn = document.getElementById('btn-cerrar');
+    const gestionBtn = document.getElementById('btn-gestion');
     
     if (this.userType === 'admin') {
       genBtn.style.display = 'block';
       cerrarBtn.style.display = 'block';
+      gestionBtn.style.display = 'block';
     } else {
       genBtn.style.display = 'none';
       cerrarBtn.style.display = 'none';
-      // Ocultar botones de gestión para usuarios de solo lectura
-      document.getElementById('btn-gestion').style.display = 'none';
+      gestionBtn.style.display = 'none';
     }
   }
 

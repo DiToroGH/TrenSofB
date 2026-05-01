@@ -33,7 +33,7 @@ USERS_DB = {
         "password": "Germany10",
         "user_type": "admin",
     },
-    "usuario": {
+    "user": {
         "password": "user123",
         "user_type": "user",
     },

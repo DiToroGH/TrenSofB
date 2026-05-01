@@ -85,12 +85,20 @@ class AsignacionOut(BaseModel):
     acompanante: str
 
 
+class ConductorItem(BaseModel):
+    """Orden actual en SQLite (misma fila que `conductores` por posición)."""
+
+    id: int
+    nombre: str
+
+
 class EstadoHoyResponse(BaseModel):
     fecha: str
     acompaniantes_orden: list[str]
     no_disponibles_hoy: list[str]
     asignaciones: list[AsignacionOut]
     conductores: list[str]
+    conductores_items: list[ConductorItem] = []
     mensaje_turno: str | None = None
 
 
@@ -179,6 +187,13 @@ def estado_hoy(response: Response, current_user: TokenData = Depends(get_current
             conductores[0], orden[0], orden, disponibles=disp_msg
         )
 
+    conductores_items: list[ConductorItem] = []
+    if is_admin(current_user):
+        filas_cond = repo.listar_personas("conductores")
+        conductores_items = [
+            ConductorItem(id=pid, nombre=nombre) for pid, nombre in filas_cond
+        ]
+
     return EstadoHoyResponse(
         fecha=estado.get("fecha", ""),
         acompaniantes_orden=orden,
@@ -187,6 +202,7 @@ def estado_hoy(response: Response, current_user: TokenData = Depends(get_current
             AsignacionOut(conductor=c, acompanante=a) for c, a in resultados
         ],
         conductores=conductores,
+        conductores_items=conductores_items,
         mensaje_turno=mensaje,
     )
 

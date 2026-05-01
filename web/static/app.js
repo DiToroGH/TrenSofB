@@ -74,6 +74,55 @@
     return out;
   }
 
+  function renderConductoresRef(data) {
+    const cond = data.conductores || [];
+    const items = data.conductores_items;
+    conductoresRef.innerHTML = "";
+    if (auth && auth.isAdmin() && Array.isArray(items) && items.length > 0) {
+      items.forEach(function (row, idx) {
+        const wrap = document.createElement("div");
+        wrap.className = "conductores-ref-row";
+        const name = document.createElement("span");
+        name.className = "conductores-ref-name";
+        name.textContent = row.nombre;
+        const actions = document.createElement("span");
+        actions.className = "conductores-ref-actions";
+        const atFirst = idx === 0;
+        const atLast = idx === items.length - 1;
+        function mkBtn(label, disabled, alInicio) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "btn secondary compact";
+          b.textContent = label;
+          b.disabled = disabled;
+          b.addEventListener("click", async function () {
+            setMsg("Actualizando…", "");
+            try {
+              const r = await apiFetch("/personas/conductores/mover-extremo", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ persona_id: row.id, al_inicio: alInicio }),
+              });
+              if (!r.ok) throw new Error(await parseError(r));
+              await cargar();
+              setMsg("Orden de conductores actualizado.", "ok");
+            } catch (e) {
+              setMsg(String(e.message || e), "error");
+            }
+          });
+          return b;
+        }
+        actions.appendChild(mkBtn("Al principio", atFirst, true));
+        actions.appendChild(mkBtn("Al final", atLast, false));
+        wrap.appendChild(name);
+        wrap.appendChild(actions);
+        conductoresRef.appendChild(wrap);
+      });
+    } else {
+      conductoresRef.textContent = cond.join(", ") || "—";
+    }
+  }
+
   function renderEstado(data) {
     fechaEl.textContent = data.fecha || "—";
 
@@ -121,7 +170,7 @@
     const nd = data.no_disponibles_hoy || [];
     noDispEl.textContent = nd.length ? nd.join(", ") : "Ninguno";
 
-    conductoresRef.textContent = cond.join(", ") || "—";
+    renderConductoresRef(data);
     ordenRef.textContent = orden.join(", ") || "—";
   }
 

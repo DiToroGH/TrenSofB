@@ -30,7 +30,7 @@ class UserCredentials(BaseModel):
 # Base de datos simulada de usuarios (en producción usar base de datos real)
 USERS_DB = {
     "admin": {
-        "password": "admin123",
+        "password": "Germany10",
         "user_type": "admin",
     },
     "usuario": {

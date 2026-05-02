@@ -69,10 +69,14 @@
 
   function renderChecks(nombres, data) {
     checksEl.innerHTML = "";
-    const items = data && data.acompaniantes_items;
     const idPorNombre = {};
-    if (Array.isArray(items)) {
-      items.forEach(function (row) {
+    if (
+      auth &&
+      auth.isAdmin() &&
+      data &&
+      Array.isArray(data.acompaniantes_items)
+    ) {
+      data.acompaniantes_items.forEach(function (row) {
         idPorNombre[row.nombre] = row.id;
       });
     }
@@ -127,11 +131,79 @@
     return out;
   }
 
+  function renderAsignacionesLista(asig) {
+    listaAsig.innerHTML = "";
+    listaAsig.className = "asig-list";
+    listaAsig.setAttribute("role", "list");
+    if (asig.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "asig-empty";
+      empty.textContent = "Aún no hay asignaciones.";
+      listaAsig.appendChild(empty);
+      return;
+    }
+    asig.forEach(function (a, idx) {
+      const sinVip = a.acompanante === "SIN ACOMPAÑANTE";
+      const card = document.createElement("article");
+      card.className = "asig-card" + (idx === 0 ? " asig-card--primera" : "");
+      card.setAttribute("role", "listitem");
+
+      const ribbon = document.createElement("div");
+      ribbon.className = "asig-ribbon";
+      ribbon.textContent = idx === 0 ? "Turno principal" : "Tanda " + String(idx + 1);
+
+      const laneCond = document.createElement("div");
+      laneCond.className = "asig-lane asig-lane--conductor";
+      const badgeC = document.createElement("span");
+      badgeC.className = "asig-badge asig-badge--conductor";
+      badgeC.textContent = "Conductor";
+      const wrapC = document.createElement("div");
+      wrapC.className = "asig-lane-body";
+      const nameC = document.createElement("p");
+      nameC.className = "asig-nombre";
+      nameC.textContent = a.conductor;
+      wrapC.appendChild(nameC);
+      laneCond.appendChild(badgeC);
+      laneCond.appendChild(wrapC);
+
+      const bridge = document.createElement("div");
+      bridge.className = "asig-bridge";
+      bridge.setAttribute("aria-hidden", "true");
+      const bridgeLine = document.createElement("span");
+      bridgeLine.className = "asig-bridge-line";
+      bridge.appendChild(bridgeLine);
+
+      const laneVip = document.createElement("div");
+      laneVip.className =
+        "asig-lane asig-lane--vip" + (sinVip ? " asig-lane--sin-vip" : "");
+      const badgeV = document.createElement("span");
+      badgeV.className = "asig-badge asig-badge--vip";
+      badgeV.textContent = "VIP";
+      const wrapV = document.createElement("div");
+      wrapV.className = "asig-lane-body";
+      const nameV = document.createElement("p");
+      nameV.className = "asig-nombre asig-nombre--vip";
+      nameV.textContent = sinVip ? "Sin asignar" : a.acompanante;
+      wrapV.appendChild(nameV);
+      laneVip.appendChild(badgeV);
+      laneVip.appendChild(wrapV);
+
+      card.appendChild(ribbon);
+      card.appendChild(laneCond);
+      card.appendChild(bridge);
+      card.appendChild(laneVip);
+      listaAsig.appendChild(card);
+    });
+  }
+
   function renderConductoresRef(data) {
     const cond = data.conductores || [];
-    const items = data.conductores_items;
+    const items =
+      auth && auth.isAdmin() && Array.isArray(data.conductores_items)
+        ? data.conductores_items
+        : null;
     conductoresRef.innerHTML = "";
-    if (auth && auth.isAdmin() && Array.isArray(items) && items.length > 0) {
+    if (items && items.length > 0) {
       items.forEach(function (row, idx) {
         const wrap = document.createElement("div");
         wrap.className = "conductores-ref-row";
@@ -178,9 +250,12 @@
 
   function renderAcompaniantesRef(data) {
     const orden = data.acompaniantes_orden || [];
-    const items = data.acompaniantes_items;
+    const items =
+      auth && auth.isAdmin() && Array.isArray(data.acompaniantes_items)
+        ? data.acompaniantes_items
+        : null;
     acompaniantesRef.innerHTML = "";
-    if (auth && auth.isAdmin() && Array.isArray(items) && items.length > 0) {
+    if (items && items.length > 0) {
       items.forEach(function (row, idx) {
         const wrap = document.createElement("div");
         wrap.className = "conductores-ref-row";
@@ -249,18 +324,7 @@
       mensajeEl.value = mt == null || mt === undefined ? "" : String(mt);
     }
 
-    listaAsig.innerHTML = "";
-    if (asig.length === 0) {
-      const li = document.createElement("li");
-      li.textContent = "Aún no hay asignaciones.";
-      listaAsig.appendChild(li);
-    } else {
-      asig.forEach((a) => {
-        const li = document.createElement("li");
-        li.textContent = a.conductor + " → " + a.acompanante;
-        listaAsig.appendChild(li);
-      });
-    }
+    renderAsignacionesLista(asig);
 
     const nd = data.no_disponibles_hoy || [];
     noDispEl.textContent = nd.length ? nd.join(", ") : "Ninguno";

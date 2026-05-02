@@ -30,7 +30,11 @@ from core.auth import (
 )
 from api.personas import router as personas_router
 from infra import repositories as repo
-from infra.state_sync import fusionar_estado_acompaniantes, sincronizar_acompaniantes_en_estado_y_guardar
+from infra.state_sync import (
+    fusionar_estado_acompaniantes,
+    persistir_orden_sqlite_acompaniantes_desde_estado,
+    sincronizar_acompaniantes_en_estado_y_guardar,
+)
 
 WEB_ROOT = Path(__file__).resolve().parent.parent / "web"
 STATIC_DIR = WEB_ROOT / "static"
@@ -296,6 +300,7 @@ def cerrar_dia(admin_user: TokenData = Depends(get_admin_user)):
     estado.pop("asignaciones_hoy", None)
     estado.pop("disponibles_hoy", None)
     repo.guardar_estado(estado)
+    persistir_orden_sqlite_acompaniantes_desde_estado(estado)
 
     orden_after = estado.get("acompaniantes_orden", [])
     conductores_after = repo.cargar_conductores()

@@ -8,7 +8,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from infra import repositories as repo
-from infra.state_sync import sincronizar_acompaniantes_en_estado_y_guardar
+from infra.state_sync import (
+    persistir_orden_acompaniantes_sqlite_en_estado,
+    sincronizar_acompaniantes_en_estado_y_guardar,
+)
 from core.auth import TokenData, get_current_user, is_admin
 
 router = APIRouter(prefix="/personas", tags=["personas"])
@@ -193,7 +196,7 @@ def mover_acompaniante(body: MoverBody, current_user: TokenData = Depends(get_cu
     if not is_admin(current_user):
         raise HTTPException(status_code=403, detail="Solo administradores pueden mover acompañantes")
     _mover_vecino(_tabla_acompaniantes(), body.persona_id, body.direccion)
-    sincronizar_acompaniantes_en_estado_y_guardar()
+    persistir_orden_acompaniantes_sqlite_en_estado()
 
 
 @router.post("/acompaniantes/mover-extremo", status_code=204)
@@ -201,7 +204,7 @@ def mover_acompaniante_extremo(body: MoverExtremoBody, current_user: TokenData =
     if not is_admin(current_user):
         raise HTTPException(status_code=403, detail="Solo administradores pueden mover acompañantes")
     _mover_extremo(_tabla_acompaniantes(), body.persona_id, body.al_inicio)
-    sincronizar_acompaniantes_en_estado_y_guardar()
+    persistir_orden_acompaniantes_sqlite_en_estado()
 
 
 @router.post("/acompaniantes/carga-masiva", response_model=CargaMasivaResponse)

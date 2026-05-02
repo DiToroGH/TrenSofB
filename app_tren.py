@@ -13,6 +13,7 @@ from core.services import (
     resolver_pareja_cierre,
 )
 from infra import repositories as repo
+from infra.state_sync import persistir_orden_sqlite_acompaniantes_desde_estado
 
 
 class App(tk.Tk):
@@ -210,6 +211,7 @@ class App(tk.Tk):
         self.estado.pop("asignaciones_hoy", None)
         self.estado.pop("disponibles_hoy", None)
         repo.guardar_estado(self.estado)
+        persistir_orden_sqlite_acompaniantes_desde_estado(self.estado)
         self.resultados = []
         self.refrescar_ui()
         self.mostrar_resultados()

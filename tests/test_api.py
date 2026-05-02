@@ -154,6 +154,8 @@ class TestApiAislada(unittest.TestCase):
         r3 = self.client.get("/estado/hoy", headers=h)
         orden_despues = r3.json()["acompaniantes_orden"]
         self.assertEqual(orden_despues[-1], orden_antes[0])
+        # El JSON debe reflejar el movimiento (antes solo cambiaba SQLite).
+        self.assertNotEqual(orden_despues, orden_antes)
 
 
 if __name__ == "__main__":

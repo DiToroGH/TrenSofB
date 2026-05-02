@@ -24,6 +24,11 @@ class AuthManager {
   showLoginScreen() {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('main-screen').style.display = 'none';
+    const msgEl = document.getElementById('msg');
+    if (msgEl) {
+      msgEl.textContent = '';
+      msgEl.className = 'msg';
+    }
     this.setupLoginForm();
   }
 
@@ -78,6 +83,14 @@ class AuthManager {
       this.username = data.username;
       
       this.showMainScreen();
+      const msgEl = document.getElementById('msg');
+      if (msgEl) {
+        msgEl.textContent = '';
+        msgEl.className = 'msg';
+      }
+      if (typeof window.__trenRecargarEstado === 'function') {
+        void window.__trenRecargarEstado();
+      }
     } catch (error) {
       errorDiv.textContent = error.message;
       errorDiv.style.display = 'block';

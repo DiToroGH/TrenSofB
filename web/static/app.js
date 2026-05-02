@@ -407,7 +407,9 @@
     }
   });
 
-  cargar();
+  if (auth && auth.token) {
+    cargar();
+  }
 
   window.__trenRecargarEstado = cargar;
   window.__trenInvalidateOrdenChecks = function () {

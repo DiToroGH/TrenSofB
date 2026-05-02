@@ -92,6 +92,13 @@ class ConductorItem(BaseModel):
     nombre: str
 
 
+class AcompanianteItem(BaseModel):
+    """Mismo orden que `acompaniantes_orden` en estado; `id` desde SQLite para mover-extremo."""
+
+    id: int
+    nombre: str
+
+
 class EstadoHoyResponse(BaseModel):
     fecha: str
     acompaniantes_orden: list[str]
@@ -99,6 +106,7 @@ class EstadoHoyResponse(BaseModel):
     asignaciones: list[AsignacionOut]
     conductores: list[str]
     conductores_items: list[ConductorItem] = []
+    acompaniantes_items: list[AcompanianteItem] = []
     mensaje_turno: str | None = None
 
 
@@ -188,11 +196,23 @@ def estado_hoy(response: Response, current_user: TokenData = Depends(get_current
         )
 
     conductores_items: list[ConductorItem] = []
+    acompaniantes_items: list[AcompanianteItem] = []
     if is_admin(current_user):
         filas_cond = repo.listar_personas("conductores")
         conductores_items = [
             ConductorItem(id=pid, nombre=nombre) for pid, nombre in filas_cond
         ]
+        filas_acomp = repo.listar_personas("acompaniantes")
+        nombre_a_id = {nombre: pid for pid, nombre in filas_acomp}
+        vistos: set[str] = set()
+        for nombre in orden:
+            pid = nombre_a_id.get(nombre)
+            if pid is not None:
+                acompaniantes_items.append(AcompanianteItem(id=pid, nombre=nombre))
+                vistos.add(nombre)
+        for pid, nombre in filas_acomp:
+            if nombre not in vistos:
+                acompaniantes_items.append(AcompanianteItem(id=pid, nombre=nombre))
 
     return EstadoHoyResponse(
         fecha=estado.get("fecha", ""),
@@ -203,6 +223,7 @@ def estado_hoy(response: Response, current_user: TokenData = Depends(get_current
         ],
         conductores=conductores,
         conductores_items=conductores_items,
+        acompaniantes_items=acompaniantes_items,
         mensaje_turno=mensaje,
     )
 

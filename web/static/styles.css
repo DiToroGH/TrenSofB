@@ -207,6 +207,11 @@ body {
   .grid-2 {
     grid-template-columns: 1fr 1fr;
   }
+
+  /* Usuario sin columna de disponibilidad: una sola columna a ancho completo */
+  .grid-2.grid-2--solo-asignaciones {
+    grid-template-columns: 1fr;
+  }
 }
 
 .lista {

@@ -7,7 +7,7 @@
   const listaAsig = document.getElementById("lista-asignaciones");
   const noDispEl = document.getElementById("no-disp");
   const conductoresRef = document.getElementById("conductores-ref");
-  const ordenRef = document.getElementById("orden-ref");
+  const acompaniantesRef = document.getElementById("acompaniantes-ref");
 
   /** Serialización del orden de acompañantes; si no cambió, no recreamos los checkboxes (preserva tildes). */
   let lastOrdenSerialized = null;
@@ -123,14 +123,69 @@
     }
   }
 
+  function renderAcompaniantesRef(data) {
+    const orden = data.acompaniantes_orden || [];
+    const items = data.acompaniantes_items;
+    acompaniantesRef.innerHTML = "";
+    if (auth && auth.isAdmin() && Array.isArray(items) && items.length > 0) {
+      items.forEach(function (row, idx) {
+        const wrap = document.createElement("div");
+        wrap.className = "conductores-ref-row";
+        const name = document.createElement("span");
+        name.className = "conductores-ref-name";
+        name.textContent = row.nombre;
+        const actions = document.createElement("span");
+        actions.className = "conductores-ref-actions";
+        const atFirst = idx === 0;
+        const atLast = idx === items.length - 1;
+        function mkBtn(label, disabled, alInicio) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "btn secondary compact";
+          b.textContent = label;
+          b.disabled = disabled;
+          b.addEventListener("click", async function () {
+            setMsg("Actualizando…", "");
+            try {
+              const r = await apiFetch("/personas/acompaniantes/mover-extremo", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ persona_id: row.id, al_inicio: alInicio }),
+              });
+              if (!r.ok) throw new Error(await parseError(r));
+              lastOrdenSerialized = null;
+              await cargar();
+              setMsg("Orden de acompañantes actualizado.", "ok");
+            } catch (e) {
+              setMsg(String(e.message || e), "error");
+            }
+          });
+          return b;
+        }
+        actions.appendChild(mkBtn("Al principio", atFirst, true));
+        actions.appendChild(mkBtn("Al final", atLast, false));
+        wrap.appendChild(name);
+        wrap.appendChild(actions);
+        acompaniantesRef.appendChild(wrap);
+      });
+    } else {
+      acompaniantesRef.textContent = orden.join(", ") || "—";
+    }
+  }
+
   function renderEstado(data) {
     fechaEl.textContent = data.fecha || "—";
 
     const orden = data.acompaniantes_orden || [];
-    const ordenKey = JSON.stringify(orden);
+    const ordenKey =
+      JSON.stringify(orden) + (auth && auth.isAdmin() ? "|admin" : "|user");
     if (ordenKey !== lastOrdenSerialized) {
       lastOrdenSerialized = ordenKey;
-      renderChecks(orden);
+      if (auth && auth.isAdmin()) {
+        renderChecks(orden);
+      } else {
+        checksEl.innerHTML = "";
+      }
     }
     const cond = data.conductores || [];
     const asig = data.asignaciones || [];
@@ -171,7 +226,7 @@
     noDispEl.textContent = nd.length ? nd.join(", ") : "Ninguno";
 
     renderConductoresRef(data);
-    ordenRef.textContent = orden.join(", ") || "—";
+    renderAcompaniantesRef(data);
   }
 
   async function cargar() {

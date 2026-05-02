@@ -187,7 +187,7 @@ git pull   # o volvé a subir archivos con scp
 docker build -t sofb-tren:latest .
 docker rm -f sofb-tren
 docker run -d --name sofb-tren --restart unless-stopped \
-  -p 80:80 \
+  -p 80:8000 \
   -e TREN_DATA_DIR=/data \
   -v /opt/tren-data:/data \
   sofb-tren:latest

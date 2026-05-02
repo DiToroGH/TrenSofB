@@ -124,6 +124,37 @@ class TestApiAislada(unittest.TestCase):
         nombres_despues = r3.json()["conductores"]
         self.assertEqual(nombres_despues[-1], items[0]["nombre"])
 
+    def test_estado_hoy_acompaniantes_items_alineados_con_orden(self):
+        h = _admin_auth_headers(self.client)
+        r = self.client.get("/estado/hoy", headers=h)
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertIn("acompaniantes_items", body)
+        orden = body["acompaniantes_orden"]
+        items = body["acompaniantes_items"]
+        self.assertEqual(len(items), len(orden))
+        for i, row in enumerate(items):
+            self.assertIn("id", row)
+            self.assertIn("nombre", row)
+            self.assertEqual(row["nombre"], orden[i])
+
+    def test_mover_acompaniante_al_final_manual(self):
+        h = _admin_auth_headers(self.client)
+        r = self.client.get("/estado/hoy", headers=h)
+        items = r.json()["acompaniantes_items"]
+        orden_antes = r.json()["acompaniantes_orden"]
+        self.assertGreaterEqual(len(items), 2)
+        primero_id = items[0]["id"]
+        r2 = self.client.post(
+            "/personas/acompaniantes/mover-extremo",
+            json={"persona_id": primero_id, "al_inicio": False},
+            headers=h,
+        )
+        self.assertEqual(r2.status_code, 204)
+        r3 = self.client.get("/estado/hoy", headers=h)
+        orden_despues = r3.json()["acompaniantes_orden"]
+        self.assertEqual(orden_despues[-1], orden_antes[0])
+
 
 if __name__ == "__main__":
     unittest.main()

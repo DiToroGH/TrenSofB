@@ -75,14 +75,14 @@
         </div>
       </section>
 
-      <div class="grid-2">
-        <section class="card">
+      <div id="grid-hoy-asignaciones" class="grid-2">
+        <section id="card-disponibilidad" class="card">
           <h2>Disponibilidad (hoy)</h2>
           <p class="hint">Marcá quiénes pueden ir. Por defecto todos disponibles.</p>
           <div id="checks" class="checks"></div>
         </section>
 
-        <section class="card">
+        <section id="card-asignaciones" class="card">
           <h2>Asignaciones</h2>
           <ul id="lista-asignaciones" class="lista"></ul>
           <p class="no-disp"><span class="label">No disponibles hoy:</span> <span id="no-disp">—</span></p>
@@ -93,7 +93,8 @@
         <h2>Referencia</h2>
         <p class="ref-conductores-title"><strong>Conductores</strong></p>
         <div id="conductores-ref" class="conductores-ref-host" aria-label="Lista de conductores"></div>
-        <p><strong>Orden acompañantes:</strong> <span id="orden-ref">—</span></p>
+        <p class="ref-conductores-title"><strong>Orden acompañantes</strong></p>
+        <div id="acompaniantes-ref" class="conductores-ref-host" aria-label="Orden de acompañantes"></div>
       </section>
     </main>
 

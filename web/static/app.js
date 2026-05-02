@@ -50,19 +50,72 @@
     return r.statusText || "Error";
   }
 
-  function renderChecks(nombres) {
+  async function moverAcompanianteExtremoPorId(personaId, alInicio) {
+    setMsg("Actualizando…", "");
+    try {
+      const r = await apiFetch("/personas/acompaniantes/mover-extremo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ persona_id: personaId, al_inicio: alInicio }),
+      });
+      if (!r.ok) throw new Error(await parseError(r));
+      lastOrdenSerialized = null;
+      await cargar();
+      setMsg("Orden de acompañantes actualizado.", "ok");
+    } catch (e) {
+      setMsg(String(e.message || e), "error");
+    }
+  }
+
+  function renderChecks(nombres, data) {
     checksEl.innerHTML = "";
-    nombres.forEach((nombre) => {
-      const id = "chk-" + encodeURIComponent(nombre).replace(/%/g, "_");
+    const items = data && data.acompaniantes_items;
+    const idPorNombre = {};
+    if (Array.isArray(items)) {
+      items.forEach(function (row) {
+        idPorNombre[row.nombre] = row.id;
+      });
+    }
+    nombres.forEach(function (nombre, idx) {
+      const idChk = "chk-" + encodeURIComponent(nombre).replace(/%/g, "_");
       const label = document.createElement("label");
       const input = document.createElement("input");
       input.type = "checkbox";
       input.checked = true;
       input.dataset.nombre = nombre;
-      input.id = id;
+      input.id = idChk;
       label.appendChild(input);
       label.appendChild(document.createTextNode(nombre));
-      checksEl.appendChild(label);
+
+      const pid = idPorNombre[nombre];
+      const puedeReordenar = auth && auth.isAdmin() && pid != null;
+      if (puedeReordenar) {
+        const row = document.createElement("div");
+        row.className = "disp-check-row";
+        row.appendChild(label);
+        const actions = document.createElement("span");
+        actions.className = "conductores-ref-actions disp-check-actions";
+        const atFirst = idx === 0;
+        const atLast = idx === nombres.length - 1;
+        function mkBtn(txt, disabled, alInicio) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "btn secondary compact";
+          b.textContent = txt;
+          b.disabled = disabled;
+          b.addEventListener("click", function (e) {
+            e.preventDefault();
+            moverAcompanianteExtremoPorId(pid, alInicio);
+          });
+          return b;
+        }
+        actions.appendChild(mkBtn("Al principio", atFirst, true));
+        actions.appendChild(mkBtn("Al final", atLast, false));
+        row.appendChild(actions);
+        checksEl.appendChild(row);
+      } else {
+        checksEl.appendChild(label);
+      }
     });
   }
 
@@ -138,27 +191,14 @@
         actions.className = "conductores-ref-actions";
         const atFirst = idx === 0;
         const atLast = idx === items.length - 1;
-        function mkBtn(label, disabled, alInicio) {
+        function mkBtn(txt, disabled, alInicio) {
           const b = document.createElement("button");
           b.type = "button";
           b.className = "btn secondary compact";
-          b.textContent = label;
+          b.textContent = txt;
           b.disabled = disabled;
-          b.addEventListener("click", async function () {
-            setMsg("Actualizando…", "");
-            try {
-              const r = await apiFetch("/personas/acompaniantes/mover-extremo", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ persona_id: row.id, al_inicio: alInicio }),
-              });
-              if (!r.ok) throw new Error(await parseError(r));
-              lastOrdenSerialized = null;
-              await cargar();
-              setMsg("Orden de acompañantes actualizado.", "ok");
-            } catch (e) {
-              setMsg(String(e.message || e), "error");
-            }
+          b.addEventListener("click", function () {
+            moverAcompanianteExtremoPorId(row.id, alInicio);
           });
           return b;
         }
@@ -182,7 +222,7 @@
     if (ordenKey !== lastOrdenSerialized) {
       lastOrdenSerialized = ordenKey;
       if (auth && auth.isAdmin()) {
-        renderChecks(orden);
+        renderChecks(orden, data);
       } else {
         checksEl.innerHTML = "";
       }

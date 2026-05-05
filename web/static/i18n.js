@@ -37,7 +37,8 @@
       almanaqueAria: "Almanaque semanal",
       weekTitle: "Esta semana",
       weekHint:
-        "Cada día muestra la tanda según el orden actual (turno principal, tanda 2…). La etiqueta de estado solo corresponde al día de hoy.",
+        "Hoy es la tanda 1; mañana la 2, y así sucesivamente según el orden actual. Los días ya pasados en la semana no muestran proyección.",
+      almanaqueBeforeToday: "—",
       sectionToday: "Hoy",
       metaDatePrefix: "Fecha estado:",
       summaryLoading: "Cargando…",
@@ -150,7 +151,8 @@
       almanaqueAria: "Weekly schedule",
       weekTitle: "This week",
       weekHint:
-        "Each day shows the shift from the current order (main shift, shift 2…). The status label applies only to today.",
+        "Today is shift 1; tomorrow shift 2, and so on from the current order. Earlier days this week show no projection.",
+      almanaqueBeforeToday: "—",
       sectionToday: "Today",
       metaDatePrefix: "State date:",
       summaryLoading: "Loading…",
@@ -261,7 +263,8 @@
       almanaqueAria: "Calendário semanal",
       weekTitle: "Esta semana",
       weekHint:
-        "Cada dia mostra a tanda conforme a ordem atual (turno principal, tanda 2…). O estado só vale para hoje.",
+        "Hoje é a tanda 1; amanhã a 2, e assim por diante conforme a ordem atual. Os dias já passados na semana não mostram projeção.",
+      almanaqueBeforeToday: "—",
       sectionToday: "Hoje",
       metaDatePrefix: "Data do estado:",
       summaryLoading: "A carregar…",

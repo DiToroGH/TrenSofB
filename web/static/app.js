@@ -218,6 +218,13 @@
     return d;
   }
 
+  /** Días de calendario entre a y b (a − b). Misma fecha → 0. */
+  function diffDiasCalendario(a, b) {
+    const ua = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+    const ub = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+    return Math.round((ua - ub) / 86400000);
+  }
+
   function parejaDesdeEstado(data) {
     const cond = data.conductores || [];
     const asig = data.asignaciones || [];
@@ -284,13 +291,20 @@
       head.appendChild(timeEl);
       article.appendChild(head);
 
+      const offsetDesdeHoy = diffDiasCalendario(cellDate, hoy);
+
       const tandaEl = document.createElement("div");
       tandaEl.className = "almanaque-tanda";
-      tandaEl.textContent =
-        i === 0 ? t("mainShift") : t("shiftN", { n: String(i + 1) });
+      if (offsetDesdeHoy < 0) {
+        tandaEl.classList.add("almanaque-tanda--past");
+        tandaEl.textContent = t("almanaqueBeforeToday");
+      } else {
+        tandaEl.textContent = t("shiftN", { n: String(offsetDesdeHoy + 1) });
+      }
       article.appendChild(tandaEl);
 
-      const slot = pairs[i];
+      const slot =
+        offsetDesdeHoy >= 0 ? pairs[offsetDesdeHoy] || null : null;
       let cText = t("dash");
       let vText = t("dash");
       let vClass = "almanaque-par-nombre almanaque-par-nombre--muted";

@@ -217,6 +217,11 @@ body {
   color: #b8d4ff;
 }
 
+.almanaque-tanda--past {
+  color: #5c6b7d;
+  font-weight: 600;
+}
+
 .almanaque-dia-head {
   display: flex;
   align-items: baseline;

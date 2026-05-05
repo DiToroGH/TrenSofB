@@ -68,7 +68,7 @@ class AuthManager {
       });
 
       if (!response.ok) {
-        throw new Error('Credenciales inválidas');
+        throw new Error(window.trenI18n.t('invalidCreds'));
       }
 
       const data = await response.json();
@@ -98,10 +98,7 @@ class AuthManager {
   }
 
   setupMainScreen() {
-    // Mostrar información del usuario
-    const userType = this.userType === 'admin' ? 'Administrador' : 'Usuario';
-    document.getElementById('user-display').textContent = 
-      `${this.username} (${userType})`;
+    this.refreshUserDisplay();
     
     if (!this._logoutWired) {
       this._logoutWired = true;
@@ -134,6 +131,21 @@ class AuthManager {
 
   updateUI() {
     // Actualizar cualquier elemento que dependa del tipo de usuario
+  }
+
+  refreshUserDisplay() {
+    if (!this.token) return;
+    const role =
+      this.userType === "admin"
+        ? window.trenI18n.t("roleAdmin")
+        : window.trenI18n.t("roleUser");
+    const el = document.getElementById("user-display");
+    if (el) {
+      el.textContent = window.trenI18n.t("userDisplay", {
+        username: this.username,
+        role: role,
+      });
+    }
   }
 
   async logout() {
@@ -174,3 +186,9 @@ class AuthManager {
 
 // Instancia global de AuthManager
 const auth = new AuthManager();
+
+window.addEventListener('tren-lang-change', () => {
+  if (auth && auth.isAuthenticated()) {
+    auth.refreshUserDisplay();
+  }
+});

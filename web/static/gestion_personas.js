@@ -1,4 +1,8 @@
 (function () {
+  function t(key, vars) {
+    return window.trenI18n.t(key, vars);
+  }
+
   const dlg = document.getElementById("dlg-gestion");
   const btnGestion = document.getElementById("btn-gestion");
   const btnCerrarDlg = document.getElementById("dlg-gestion-cerrar");
@@ -50,7 +54,7 @@
       if (auth) {
         auth.logout();
       }
-      throw new Error("Sesión expirada o sin permisos. Por favor inicia sesión nuevamente.");
+      throw new Error(t("sessionExpired"));
     }
     
     try {
@@ -60,7 +64,7 @@
         if (Array.isArray(j.detail)) return j.detail.map(function (d) { return d.msg || d; }).join("; ");
       }
     } catch (_) {}
-    return r.statusText || "Error";
+    return r.statusText || t("errorGeneric");
   }
 
   function recargarPrincipal() {
@@ -122,8 +126,10 @@
       });
       ul.appendChild(li);
     });
-    meta.textContent =
-      "Mostrando " + filtrados.length + " de " + items.length + " registros.";
+    meta.textContent = t("gestionShowing", {
+      shown: String(filtrados.length),
+      total: String(items.length),
+    });
   }
 
   function setTab(which) {
@@ -156,7 +162,7 @@
     const inp = tipo === "cond" ? nombreCond : nombreAcomp;
     const nombre = inp.value.trim();
     if (!nombre) {
-      setMsgG("Ingresá un nombre.", "error");
+      setMsgG(t("gestionEnterName"), "error");
       return;
     }
     const r = await apiFetch(basePath(tipo), {
@@ -180,11 +186,11 @@
     const inp = tipo === "cond" ? nombreCond : nombreAcomp;
     const nombre = inp.value.trim();
     if (!id) {
-      setMsgG("Seleccioná un registro.", "error");
+      setMsgG(t("gestionSelectRecord"), "error");
       return;
     }
     if (!nombre) {
-      setMsgG("Ingresá el nuevo nombre.", "error");
+      setMsgG(t("gestionEnterNewName"), "error");
       return;
     }
     const r = await apiFetch(basePath(tipo) + "/" + id, {
@@ -198,12 +204,17 @@
   async function deleteBaja(tipo) {
     const id = seleccionId(tipo);
     if (!id) {
-      setMsgG("Seleccioná un registro.", "error");
+      setMsgG(t("gestionSelectRecord"), "error");
       return;
     }
     var items = tipo === "cond" ? conductores : acompaniantes;
     var row = items.filter(function (x) { return x.id === id; })[0];
-    if (!window.confirm("¿Eliminar '" + (row ? row.nombre : id) + "'?")) return;
+    if (
+      !window.confirm(
+        t("gestionConfirmDelete", { name: row ? row.nombre : String(id) })
+      )
+    )
+      return;
     const r = await apiFetch(basePath(tipo) + "/" + id, { method: "DELETE" });
     if (!r.ok) throw new Error(await parseError(r));
     if (tipo === "cond") {
@@ -218,7 +229,7 @@
   async function postMover(tipo, direccion) {
     const id = seleccionId(tipo);
     if (!id) {
-      setMsgG("Seleccioná un registro.", "error");
+      setMsgG(t("gestionSelectRecord"), "error");
       return;
     }
     const r = await apiFetch(basePath(tipo) + "/mover", {
@@ -232,7 +243,7 @@
   async function postMoverExtremo(tipo, alInicio) {
     const id = seleccionId(tipo);
     if (!id) {
-      setMsgG("Seleccioná un registro.", "error");
+      setMsgG(t("gestionSelectRecord"), "error");
       return;
     }
     const r = await apiFetch(basePath(tipo) + "/mover-extremo", {
@@ -246,7 +257,7 @@
   async function postMasiva() {
     const texto = masivaTa.value;
     if (!texto.trim()) {
-      setMsgG("No hay nombres para cargar.", "error");
+      setMsgG(t("gestionNoNamesBulk"), "error");
       return;
     }
     const r = await apiFetch("/personas/acompaniantes/carga-masiva", {
@@ -257,9 +268,15 @@
     if (!r.ok) throw new Error(await parseError(r));
     const res = await r.json();
     masivaTa.value = "";
+    var errPart = res.errores
+      ? t("gestionErrSuffix", { n: String(res.errores) })
+      : "";
     setMsgG(
-      "Agregados: " + res.agregados + " · Omitidos (duplicados): " + res.duplicados +
-        (res.errores ? " · Errores: " + res.errores : ""),
+      t("gestionBulkResult", {
+        agregados: String(res.agregados),
+        duplicados: String(res.duplicados),
+        errPart: errPart,
+      }),
       ""
     );
   }
@@ -275,7 +292,7 @@
           window.__trenInvalidateOrdenChecks();
         }
         recargarPrincipal();
-        setMsgG("Listo.", "");
+        setMsgG(t("gestionReady"), "");
       } catch (e) {
         setMsgG(String(e.message || e), "error");
       }
@@ -356,5 +373,12 @@
   dlg.addEventListener("cancel", function (e) {
     e.preventDefault();
     dlg.close();
+  });
+
+  window.addEventListener("tren-lang-change", function () {
+    if (conductores.length || acompaniantes.length) {
+      renderLista("cond");
+      renderLista("acomp");
+    }
   });
 })();

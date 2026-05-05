@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Response, Depends
@@ -322,11 +322,18 @@ def cerrar_dia(admin_user: TokenData = Depends(get_admin_user)):
     if conductor_hoy:
         repo.mover_persona_al_final("conductores", conductor_hoy)
 
+    fecha_estado_raw = str(estado.get("fecha") or str(date.today())).strip()[:10]
+    try:
+        fecha_estado = date.fromisoformat(fecha_estado_raw)
+    except ValueError:
+        fecha_estado = date.today()
+    fecha_maniana = (fecha_estado + timedelta(days=1)).isoformat()
+
     estado = estado_despues_cierre(
         estado,
         conductor_hoy,
         acomp_hoy,
-        str(date.today()),
+        fecha_maniana,
     )
     estado.pop("asignaciones_hoy", None)
     estado.pop("disponibles_hoy", None)

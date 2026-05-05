@@ -211,6 +211,25 @@
     return y + "-" + m + "-" + day;
   }
 
+  function parseIsoDateLocal(iso) {
+    if (!iso || typeof iso !== "string") return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+    if (!m) return null;
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const d = Number(m[3]);
+    if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return null;
+    return new Date(y, mo - 1, d);
+  }
+
+  function fechaReferenciaPorRol(data) {
+    if (auth && auth.isAdmin()) {
+      const desdeEstado = parseIsoDateLocal(data && data.fecha ? data.fecha : "");
+      if (desdeEstado) return desdeEstado;
+    }
+    return new Date();
+  }
+
   function inicioSemanaLunes(ref) {
     const d = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
     const day = d.getDay();
@@ -256,7 +275,7 @@
     if (!almanaqueEl) return;
     const regMap = registroPorFecha || {};
     almanaqueEl.innerHTML = "";
-    const hoy = new Date();
+    const hoy = fechaReferenciaPorRol(data);
     const claveHoy = fechaClaveLocal(hoy);
     const inicio = inicioSemanaLunes(hoy);
     // Mostramos 4 semanas en total: 1 pasada, la actual y las 2 siguientes.
@@ -624,9 +643,10 @@
       const r = await apiFetch("/estado/hoy");
       if (!r.ok) throw new Error(await parseError(r));
       const data = await r.json();
+      const fechaRef = fechaReferenciaPorRol(data);
       let regMap = null;
       try {
-        regMap = await cargarRegistroSemanaActual(new Date());
+        regMap = await cargarRegistroSemanaActual(fechaRef);
       } catch (err) {
         console.warn(err);
       }

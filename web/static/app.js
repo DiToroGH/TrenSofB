@@ -9,6 +9,7 @@
   const conductoresRef = document.getElementById("conductores-ref");
   const acompaniantesRef = document.getElementById("acompaniantes-ref");
   const almanaqueEl = document.getElementById("almanaque-semanal");
+  const almanaqueModoEl = document.getElementById("almanaque-modo");
 
   function t(key, vars) {
     return window.trenI18n.t(key, vars);
@@ -222,11 +223,9 @@
     return new Date(y, mo - 1, d);
   }
 
-  function fechaReferenciaPorRol(data) {
-    if (auth && auth.isAdmin()) {
-      const desdeEstado = parseIsoDateLocal(data && data.fecha ? data.fecha : "");
-      if (desdeEstado) return desdeEstado;
-    }
+  function fechaOperativa(data) {
+    const desdeEstado = parseIsoDateLocal(data && data.fecha ? data.fecha : "");
+    if (desdeEstado) return desdeEstado;
     return new Date();
   }
 
@@ -275,9 +274,12 @@
     if (!almanaqueEl) return;
     const regMap = registroPorFecha || {};
     almanaqueEl.innerHTML = "";
-    const hoy = fechaReferenciaPorRol(data);
-    const claveHoy = fechaClaveLocal(hoy);
-    const inicio = inicioSemanaLunes(hoy);
+    const refOperativa = fechaOperativa(data);
+    const hoyReal = new Date();
+    const claveHoyOperativo = fechaClaveLocal(refOperativa);
+    const claveHoyReal = fechaClaveLocal(hoyReal);
+    const claveResaltada = auth && auth.isAdmin() ? claveHoyOperativo : claveHoyReal;
+    const inicio = inicioSemanaLunes(refOperativa);
     // Mostramos 4 semanas en total: 1 pasada, la actual y las 2 siguientes.
     const inicioRango = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() - 7);
     const parejaHoy = parejaDesdeEstado(data);
@@ -295,11 +297,12 @@
         inicioRango.getDate() + i
       );
       const clave = fechaClaveLocal(cellDate);
-      const esHoy = clave === claveHoy;
+      const esHoyResaltado = clave === claveResaltada;
+      const esHoyOperativo = clave === claveHoyOperativo;
       const { diaSem, fechaTxt } = formatoDiaAlmanaque(cellDate);
 
       const article = document.createElement("article");
-      article.className = "almanaque-dia" + (esHoy ? " almanaque-dia--hoy" : "");
+      article.className = "almanaque-dia" + (esHoyResaltado ? " almanaque-dia--hoy" : "");
       article.setAttribute("role", "listitem");
 
       const head = document.createElement("div");
@@ -315,7 +318,7 @@
       head.appendChild(timeEl);
       article.appendChild(head);
 
-      const offsetDesdeHoy = diffDiasCalendario(cellDate, hoy);
+      const offsetDesdeHoy = diffDiasCalendario(cellDate, refOperativa);
       const reg = regMap[clave];
       const useRegistroPasado =
         offsetDesdeHoy < 0 && reg && String(reg.conductor || "").trim();
@@ -391,7 +394,7 @@
         tag.className = "almanaque-estado almanaque-estado--pasado-ok";
         tag.textContent = t("statusConfirmed");
         article.appendChild(tag);
-      } else if (esHoy && parejaHoy.etiqueta) {
+      } else if (esHoyOperativo && parejaHoy.etiqueta) {
         const tag = document.createElement("p");
         tag.className = "almanaque-estado";
         tag.textContent = parejaHoy.etiqueta;
@@ -585,6 +588,17 @@
     return map;
   }
 
+  function renderAlmanaqueModo(data) {
+    if (!almanaqueModoEl) return;
+    if (auth && auth.isAdmin()) {
+      almanaqueModoEl.textContent = t("opModeAdmin", {
+        fecha: data && data.fecha ? String(data.fecha) : t("dash"),
+      });
+    } else {
+      almanaqueModoEl.textContent = "";
+    }
+  }
+
   function renderEstado(data, registroPorFecha) {
     lastEstadoData = data;
     window.__trenLastEstado = data;
@@ -632,6 +646,7 @@
     const nd = data.no_disponibles_hoy || [];
     noDispEl.textContent = nd.length ? nd.join(", ") : t("none");
 
+    renderAlmanaqueModo(data);
     renderAlmanaqueSemanal(data, lastRegistroPorFecha);
     renderConductoresRef(data);
     renderAcompaniantesRef(data);
@@ -643,7 +658,7 @@
       const r = await apiFetch("/estado/hoy");
       if (!r.ok) throw new Error(await parseError(r));
       const data = await r.json();
-      const fechaRef = fechaReferenciaPorRol(data);
+      const fechaRef = fechaOperativa(data);
       let regMap = null;
       try {
         regMap = await cargarRegistroSemanaActual(fechaRef);

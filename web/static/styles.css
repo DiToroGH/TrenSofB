@@ -164,6 +164,11 @@ body {
   font-size: 0.8rem;
 }
 
+.almanaque-card .almanaque-modo {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+}
+
 .almanaque-semanal {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));

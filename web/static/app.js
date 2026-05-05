@@ -8,6 +8,13 @@
   const noDispEl = document.getElementById("no-disp");
   const conductoresRef = document.getElementById("conductores-ref");
   const acompaniantesRef = document.getElementById("acompaniantes-ref");
+  const almanaqueEl = document.getElementById("almanaque-semanal");
+
+  const DIAS_CORTO = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+  const MESES_CORTO = [
+    "ene", "feb", "mar", "abr", "may", "jun",
+    "jul", "ago", "sep", "oct", "nov", "dic",
+  ];
 
   /** Serialización del orden de acompañantes; si no cambió, no recreamos los checkboxes (preserva tildes). */
   let lastOrdenSerialized = null;
@@ -129,6 +136,135 @@
       if (inp.checked && inp.dataset.nombre) out.push(inp.dataset.nombre);
     });
     return out;
+  }
+
+  function fechaClaveLocal(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  function inicioSemanaLunes(ref) {
+    const d = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    return d;
+  }
+
+  function parejaDesdeEstado(data) {
+    const cond = data.conductores || [];
+    const asig = data.asignaciones || [];
+    const orden = data.acompaniantes_orden || [];
+    if (asig.length > 0) {
+      return {
+        conductor: asig[0].conductor,
+        vip: asig[0].acompanante,
+        etiqueta: "Confirmado",
+      };
+    }
+    if (cond.length && orden.length) {
+      return {
+        conductor: cond[0],
+        vip: orden[0],
+        etiqueta: "Propuesto",
+      };
+    }
+    return { conductor: null, vip: null, etiqueta: null };
+  }
+
+  function renderAlmanaqueSemanal(data) {
+    if (!almanaqueEl) return;
+    almanaqueEl.innerHTML = "";
+    const hoy = new Date();
+    const claveHoy = fechaClaveLocal(hoy);
+    const inicio = inicioSemanaLunes(hoy);
+    const pareja = parejaDesdeEstado(data);
+
+    for (let i = 0; i < 7; i++) {
+      const cellDate = new Date(
+        inicio.getFullYear(),
+        inicio.getMonth(),
+        inicio.getDate() + i
+      );
+      const clave = fechaClaveLocal(cellDate);
+      const esHoy = clave === claveHoy;
+      const diaSem = DIAS_CORTO[cellDate.getDay()];
+      const num = cellDate.getDate();
+      const mes = MESES_CORTO[cellDate.getMonth()];
+
+      const article = document.createElement("article");
+      article.className = "almanaque-dia" + (esHoy ? " almanaque-dia--hoy" : "");
+      article.setAttribute("role", "listitem");
+
+      const head = document.createElement("div");
+      head.className = "almanaque-dia-head";
+      const wk = document.createElement("span");
+      wk.className = "almanaque-dia-wk";
+      wk.textContent = diaSem;
+      const timeEl = document.createElement("time");
+      timeEl.className = "almanaque-dia-fecha";
+      timeEl.setAttribute("datetime", clave);
+      timeEl.textContent = String(num) + " " + mes;
+      head.appendChild(wk);
+      head.appendChild(timeEl);
+      article.appendChild(head);
+
+      let cText = "—";
+      let vText = "—";
+      let vClass = "almanaque-par-nombre almanaque-par-nombre--muted";
+      let cClass = "almanaque-par-nombre almanaque-par-nombre--muted";
+
+      if (esHoy) {
+        cClass = "almanaque-par-nombre";
+        cText = pareja.conductor || "—";
+        if (pareja.vip === "SIN ACOMPAÑANTE") {
+          vText = "Sin asignar";
+          vClass = "almanaque-par-nombre almanaque-par-nombre--muted";
+        } else if (pareja.vip) {
+          vText = pareja.vip;
+          vClass = "almanaque-par-nombre almanaque-par-nombre--vip";
+        } else {
+          vText = "—";
+          vClass = "almanaque-par-nombre almanaque-par-nombre--muted";
+        }
+      }
+
+      const laneC = document.createElement("div");
+      laneC.className = "almanaque-par";
+      const bc = document.createElement("span");
+      bc.className = "almanaque-par-badge almanaque-par-badge--cond";
+      bc.textContent = "Conductor";
+      const nc = document.createElement("p");
+      nc.className = cClass;
+      nc.textContent = cText;
+      laneC.appendChild(bc);
+      laneC.appendChild(nc);
+
+      const laneV = document.createElement("div");
+      laneV.className = "almanaque-par";
+      const bv = document.createElement("span");
+      bv.className = "almanaque-par-badge almanaque-par-badge--vip";
+      bv.textContent = "VIP";
+      const nv = document.createElement("p");
+      nv.className = vClass;
+      nv.textContent = vText;
+      laneV.appendChild(bv);
+      laneV.appendChild(nv);
+
+      article.appendChild(laneC);
+      article.appendChild(laneV);
+
+      if (esHoy && pareja.etiqueta) {
+        const tag = document.createElement("p");
+        tag.className = "almanaque-estado";
+        tag.textContent = pareja.etiqueta;
+        article.appendChild(tag);
+      }
+
+      almanaqueEl.appendChild(article);
+    }
   }
 
   function renderAsignacionesLista(asig) {
@@ -329,6 +465,7 @@
     const nd = data.no_disponibles_hoy || [];
     noDispEl.textContent = nd.length ? nd.join(", ") : "Ninguno";
 
+    renderAlmanaqueSemanal(data);
     renderConductoresRef(data);
     renderAcompaniantesRef(data);
   }

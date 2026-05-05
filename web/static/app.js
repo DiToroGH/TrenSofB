@@ -259,18 +259,21 @@
     const hoy = new Date();
     const claveHoy = fechaClaveLocal(hoy);
     const inicio = inicioSemanaLunes(hoy);
+    // Mostramos 4 semanas en total: 1 pasada, la actual y las 2 siguientes.
+    const inicioRango = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() - 7);
     const parejaHoy = parejaDesdeEstado(data);
 
     const cond = data.conductores || [];
     const orden = data.acompaniantes_orden || [];
     const disp = disponiblesSetDesdeEstado(data);
-    const pairs = parejasParaNDias(cond, orden, disp, 7);
+    // Indexamos "pairs" por offsetDesdeHoy (0 = hoy), por eso necesitamos al menos hasta el final del rango.
+    const pairs = parejasParaNDias(cond, orden, disp, 28);
 
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 28; i++) {
       const cellDate = new Date(
-        inicio.getFullYear(),
-        inicio.getMonth(),
-        inicio.getDate() + i
+        inicioRango.getFullYear(),
+        inicioRango.getMonth(),
+        inicioRango.getDate() + i
       );
       const clave = fechaClaveLocal(cellDate);
       const esHoy = clave === claveHoy;
@@ -540,13 +543,11 @@
 
   async function cargarRegistroSemanaActual(hoy) {
     const inicio = inicioSemanaLunes(hoy);
-    const desde = fechaClaveLocal(inicio);
-    const finSemana = new Date(
-      inicio.getFullYear(),
-      inicio.getMonth(),
-      inicio.getDate() + 6
-    );
-    const hasta = fechaClaveLocal(finSemana);
+    const inicioRango = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() - 7);
+    const finRango = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + 20);
+
+    const desde = fechaClaveLocal(inicioRango);
+    const hasta = fechaClaveLocal(finRango);
     const r = await apiFetch(
       "/registro/dias?desde=" +
         encodeURIComponent(desde) +

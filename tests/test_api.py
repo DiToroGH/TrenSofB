@@ -157,6 +157,44 @@ class TestApiAislada(unittest.TestCase):
         # El JSON debe reflejar el movimiento (antes solo cambiaba SQLite).
         self.assertNotEqual(orden_despues, orden_antes)
 
+    def test_cerrar_guarda_registro_dia(self):
+        h = _admin_auth_headers(self.client)
+        r = self.client.get("/estado/hoy", headers=h)
+        self.assertEqual(r.status_code, 200)
+        fecha_estado = r.json()["fecha"]
+        self.client.post("/asignacion/generar", json={}, headers=h)
+        r_c = self.client.post("/dia/cerrar", headers=h)
+        self.assertEqual(r_c.status_code, 200)
+        r2 = self.client.get(
+            "/registro/dias",
+            params={"desde": fecha_estado, "hasta": fecha_estado},
+            headers=h,
+        )
+        self.assertEqual(r2.status_code, 200)
+        rows = r2.json()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["fecha"], fecha_estado)
+        self.assertIn("conductor", rows[0])
+        self.assertIn("acompanante", rows[0])
+
+    def test_put_registro_dia_pasado_sin_vip(self):
+        h = _admin_auth_headers(self.client)
+        r = self.client.get("/estado/hoy", headers=h)
+        cond = r.json()["conductores"][0]
+        from datetime import date, timedelta
+
+        pasado = (date.today() - timedelta(days=3)).isoformat()
+        r2 = self.client.put(
+            f"/registro/dia/{pasado}",
+            json={"conductor": cond, "acompanante": None},
+            headers=h,
+        )
+        self.assertEqual(r2.status_code, 200, r2.text)
+        body = r2.json()
+        self.assertEqual(body["fecha"], pasado)
+        self.assertEqual(body["conductor"], cond)
+        self.assertIsNone(body["acompanante"])
+
 
 if __name__ == "__main__":
     unittest.main()

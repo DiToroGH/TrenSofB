@@ -313,6 +313,67 @@ body {
   text-align: center;
 }
 
+.almanaque-estado--pasado-ok {
+  color: var(--ok);
+  border-top-color: rgba(62, 207, 142, 0.35);
+}
+
+/* Diálogo registro pasado */
+.dlg-registro-pasado {
+  max-width: min(92vw, 420px);
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.dlg-registro-pasado::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.dlg-registro-inner {
+  padding: 1rem 1.15rem 1.1rem;
+}
+
+.dlg-registro-inner .form-row {
+  margin-bottom: 0.85rem;
+}
+
+.dlg-registro-inner label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.dlg-registro-inner select,
+.dlg-registro-inner input[type="date"] {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #121a26;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.msg-registro {
+  min-height: 1.25rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+}
+
+.msg-registro.ok {
+  color: var(--ok);
+}
+
+.msg-registro.error {
+  color: #ffb4b4;
+}
+
 .ref-conductores-title {
   margin: 0 0 0.35rem;
 }

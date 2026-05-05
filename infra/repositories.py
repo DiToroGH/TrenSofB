@@ -70,6 +70,15 @@ def inicializar_db():
             )
             """
         )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS registro_dia (
+                fecha TEXT PRIMARY KEY,
+                conductor TEXT NOT NULL,
+                acompanante TEXT
+            )
+            """
+        )
         cur.execute("SELECT COUNT(*) FROM conductores")
         if cur.fetchone()[0] == 0:
             cur.executemany(
@@ -193,3 +202,45 @@ def cargar_estado():
 def guardar_estado(estado):
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(estado, f, ensure_ascii=False, indent=2)
+
+
+def upsert_registro_dia(fecha: str, conductor: str, acompanante: str | None) -> None:
+    """Guarda pareja confirmada para un día (acompanante None = conductor solo)."""
+    conn = sqlite3.connect(DB_FILE)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO registro_dia (fecha, conductor, acompanante)
+            VALUES (?, ?, ?)
+            ON CONFLICT(fecha) DO UPDATE SET
+                conductor = excluded.conductor,
+                acompanante = excluded.acompanante
+            """,
+            (fecha, conductor, acompanante),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def list_registro_dias_entre(desde: str, hasta: str) -> list[tuple[str, str, str | None]]:
+    conn = sqlite3.connect(DB_FILE)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT fecha, conductor, acompanante
+            FROM registro_dia
+            WHERE fecha >= ? AND fecha <= ?
+            ORDER BY fecha
+            """,
+            (desde, hasta),
+        )
+        rows = cur.fetchall()
+        out: list[tuple[str, str, str | None]] = []
+        for fecha, conductor, acomp in rows:
+            out.append((fecha, conductor, acomp if acomp is not None else None))
+        return out
+    finally:
+        conn.close()

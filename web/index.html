@@ -73,6 +73,7 @@
     <div class="toolbar-strip" role="toolbar" data-i18n-aria="toolbarAria" aria-label="Acciones principales">
       <div class="toolbar-inner">
         <button type="button" id="btn-gestion" class="btn secondary" data-i18n="btnManagePeople">Gestionar personas</button>
+        <button type="button" id="btn-registro-pasado" class="btn secondary" style="display: none;" data-i18n="btnPastDays">Días pasados</button>
         <button type="button" id="btn-refrescar" class="btn secondary" data-i18n="btnRefresh">Refrescar</button>
         <button type="button" id="btn-generar" class="btn primary" style="display: none;" data-i18n="btnGenerateToday">Generar asignación de hoy</button>
         <button type="button" id="btn-cerrar" class="btn danger" style="display: none;" data-i18n="btnCloseDay">Cerrar día (preparar mañana)</button>
@@ -124,6 +125,30 @@
         <div id="acompaniantes-ref" class="conductores-ref-host" data-i18n-aria="listAcompAria" aria-label="Orden de acompañantes"></div>
       </section>
     </main>
+
+    <dialog id="dlg-registro-pasado" class="dlg-registro-pasado">
+      <div class="dlg-registro-inner">
+        <h2 class="dlg-title" data-i18n="dlgRegistroTitle">Registro de días pasados</h2>
+        <p class="dlg-hint" data-i18n="dlgRegistroHint">Corregí conductor y VIP confirmados para fechas anteriores a hoy. El VIP es opcional.</p>
+        <div class="form-row">
+          <label for="reg-pasado-fecha" data-i18n="registroLabelFecha">Fecha</label>
+          <input type="date" id="reg-pasado-fecha" required />
+        </div>
+        <div class="form-row">
+          <label for="reg-pasado-cond" data-i18n="registroLabelConductor">Conductor</label>
+          <select id="reg-pasado-cond" required></select>
+        </div>
+        <div class="form-row">
+          <label for="reg-pasado-vip" data-i18n="registroLabelVip">VIP / acompañante</label>
+          <select id="reg-pasado-vip"></select>
+        </div>
+        <p id="msg-registro-pasado" class="msg-registro" role="status"></p>
+        <div class="dlg-footer" style="margin-top: 0.75rem; justify-content: space-between;">
+          <button type="button" id="reg-pasado-guardar" class="btn primary" data-i18n="registroSave">Guardar</button>
+          <button type="button" id="dlg-registro-cerrar" class="btn secondary" data-i18n="dlgClose">Cerrar</button>
+        </div>
+      </div>
+    </dialog>
 
     <dialog id="dlg-gestion" class="dlg-gestion">
       <div class="dlg-gestion-inner">
@@ -189,6 +214,7 @@
   <script src="/static/i18n.js"></script>
   <script src="/static/auth.js"></script>
   <script src="/static/app.js"></script>
+  <script src="/static/registro_pasado.js"></script>
   <script src="/static/gestion_personas.js"></script>
 </body>
 </html>

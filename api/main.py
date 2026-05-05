@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Response, Depends
@@ -131,6 +131,25 @@ class CerrarDiaResponse(BaseModel):
     acompaniantes_orden: list[str]
     mensaje: str
     mensaje_turno: str | None = None
+
+
+class RegistroDiaOut(BaseModel):
+    fecha: str
+    conductor: str
+    acompanante: str | None = None
+
+
+class PutRegistroDiaBody(BaseModel):
+    conductor: str
+    acompanante: str | None = None
+
+
+def _normalizar_fecha_iso(s: str) -> str:
+    try:
+        datetime.strptime(s, "%Y-%m-%d")
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Fecha inválida (usar YYYY-MM-DD).") from exc
+    return s
 
 
 @app.get("/health")
@@ -284,9 +303,21 @@ def cerrar_dia(admin_user: TokenData = Depends(get_admin_user)):
     raw_asig = estado.get("asignaciones_hoy")
     resultados = asignaciones_desde_json(raw_asig if isinstance(raw_asig, list) else None)
 
+    fecha_registro_raw = estado.get("fecha") or str(date.today())
+    try:
+        fecha_registro = date.fromisoformat(str(fecha_registro_raw).strip()[:10]).isoformat()
+    except ValueError:
+        fecha_registro = str(date.today())
+
     conductor_hoy, acomp_hoy = resolver_pareja_cierre(
         resultados, conductores, orden
     )
+
+    if conductor_hoy:
+        acomp_guardar: str | None = None
+        if acomp_hoy and str(acomp_hoy).strip() and str(acomp_hoy) != "SIN ACOMPAÑANTE":
+            acomp_guardar = str(acomp_hoy).strip()
+        repo.upsert_registro_dia(fecha_registro, str(conductor_hoy).strip(), acomp_guardar)
 
     if conductor_hoy:
         repo.mover_persona_al_final("conductores", conductor_hoy)
@@ -316,6 +347,58 @@ def cerrar_dia(admin_user: TokenData = Depends(get_admin_user)):
         mensaje="Día cerrado. Orden de mañana actualizado.",
         mensaje_turno=mensaje_turno,
     )
+
+
+@app.get("/registro/dias", response_model=list[RegistroDiaOut])
+def listar_registro_dias(
+    desde: str,
+    hasta: str,
+    current_user: TokenData = Depends(get_current_user),
+):
+    _ = current_user
+    d0 = _normalizar_fecha_iso(desde.strip())
+    d1 = _normalizar_fecha_iso(hasta.strip())
+    if d0 > d1:
+        raise HTTPException(status_code=400, detail="'desde' no puede ser posterior a 'hasta'.")
+    rows = repo.list_registro_dias_entre(d0, d1)
+    return [
+        RegistroDiaOut(fecha=f, conductor=c, acompanante=a) for f, c, a in rows
+    ]
+
+
+@app.put("/registro/dia/{fecha}", response_model=RegistroDiaOut)
+def actualizar_registro_dia_pasado(
+    fecha: str,
+    body: PutRegistroDiaBody,
+    admin_user: TokenData = Depends(get_admin_user),
+):
+    _ = admin_user
+    f = _normalizar_fecha_iso(fecha.strip())
+    if date.fromisoformat(f) >= date.today():
+        raise HTTPException(
+            status_code=400,
+            detail="Solo se pueden editar días ya finalizados (anteriores a hoy).",
+        )
+    conductor = str(body.conductor or "").strip()
+    if not conductor:
+        raise HTTPException(status_code=400, detail="Conductor requerido.")
+    conductores_ok = set(repo.cargar_conductores())
+    if conductor not in conductores_ok:
+        raise HTTPException(
+            status_code=400,
+            detail="El conductor debe existir en la lista actual.",
+        )
+    acomp: str | None = None
+    if body.acompanante is not None and str(body.acompanante).strip():
+        acomp = str(body.acompanante).strip()
+        acomps_ok = set(repo.cargar_acompaniantes())
+        if acomp not in acomps_ok:
+            raise HTTPException(
+                status_code=400,
+                detail="El acompañante debe existir en la lista actual.",
+            )
+    repo.upsert_registro_dia(f, conductor, acomp)
+    return RegistroDiaOut(fecha=f, conductor=conductor, acompanante=acomp)
 
 
 if STATIC_DIR.is_dir():

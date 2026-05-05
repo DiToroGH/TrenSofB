@@ -111,6 +111,7 @@ class AuthManager {
     const genBtn = document.getElementById('btn-generar');
     const cerrarBtn = document.getElementById('btn-cerrar');
     const gestionBtn = document.getElementById('btn-gestion');
+    const regPasadoBtn = document.getElementById('btn-registro-pasado');
     const cardDisp = document.getElementById('card-disponibilidad');
     const gridHoy = document.getElementById('grid-hoy-asignaciones');
     
@@ -118,12 +119,14 @@ class AuthManager {
       genBtn.style.display = 'block';
       cerrarBtn.style.display = 'block';
       gestionBtn.style.display = 'block';
+      if (regPasadoBtn) regPasadoBtn.style.display = 'block';
       if (cardDisp) cardDisp.style.display = '';
       if (gridHoy) gridHoy.classList.remove('grid-2--solo-asignaciones');
     } else {
       genBtn.style.display = 'none';
       cerrarBtn.style.display = 'none';
       gestionBtn.style.display = 'none';
+      if (regPasadoBtn) regPasadoBtn.style.display = 'none';
       if (cardDisp) cardDisp.style.display = 'none';
       if (gridHoy) gridHoy.classList.add('grid-2--solo-asignaciones');
     }

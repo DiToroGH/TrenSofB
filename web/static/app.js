@@ -17,6 +17,7 @@
   /** Serialización del orden de acompañantes; si no cambió, no recreamos los checkboxes (preserva tildes). */
   let lastOrdenSerialized = null;
   let lastEstadoData = null;
+  let lastRegistroPorFecha = {};
 
   function apiFetch(url, options) {
     const fetchOptions = Object.assign({ cache: "no-store" }, options || {});
@@ -251,8 +252,9 @@
     return v;
   }
 
-  function renderAlmanaqueSemanal(data) {
+  function renderAlmanaqueSemanal(data, registroPorFecha) {
     if (!almanaqueEl) return;
+    const regMap = registroPorFecha || {};
     almanaqueEl.innerHTML = "";
     const hoy = new Date();
     const claveHoy = fechaClaveLocal(hoy);
@@ -292,6 +294,9 @@
       article.appendChild(head);
 
       const offsetDesdeHoy = diffDiasCalendario(cellDate, hoy);
+      const reg = regMap[clave];
+      const useRegistroPasado =
+        offsetDesdeHoy < 0 && reg && String(reg.conductor || "").trim();
 
       const tandaEl = document.createElement("div");
       tandaEl.className = "almanaque-tanda";
@@ -310,11 +315,21 @@
       let vClass = "almanaque-par-nombre almanaque-par-nombre--muted";
       let cClass = "almanaque-par-nombre almanaque-par-nombre--muted";
 
-      if (slot && slot.conductor) {
+      if (useRegistroPasado) {
+        cClass = "almanaque-par-nombre";
+        cText = reg.conductor;
+        if (reg.acompanante) {
+          vText = reg.acompanante;
+          vClass = "almanaque-par-nombre almanaque-par-nombre--vip";
+        } else {
+          vText = t("unassigned");
+          vClass = "almanaque-par-nombre almanaque-par-nombre--muted";
+        }
+      } else if (slot && slot.conductor) {
         cClass = "almanaque-par-nombre";
         cText = slot.conductor;
       }
-      if (slot && slot.vip) {
+      if (!useRegistroPasado && slot && slot.vip) {
         if (slot.vip === "SIN ACOMPAÑANTE") {
           vText = t("unassigned");
           vClass = "almanaque-par-nombre almanaque-par-nombre--muted";
@@ -349,7 +364,12 @@
       article.appendChild(laneC);
       article.appendChild(laneV);
 
-      if (esHoy && parejaHoy.etiqueta) {
+      if (useRegistroPasado) {
+        const tag = document.createElement("p");
+        tag.className = "almanaque-estado almanaque-estado--pasado-ok";
+        tag.textContent = t("statusConfirmed");
+        article.appendChild(tag);
+      } else if (esHoy && parejaHoy.etiqueta) {
         const tag = document.createElement("p");
         tag.className = "almanaque-estado";
         tag.textContent = parejaHoy.etiqueta;
@@ -518,8 +538,39 @@
     }
   }
 
-  function renderEstado(data) {
+  async function cargarRegistroSemanaActual(hoy) {
+    const inicio = inicioSemanaLunes(hoy);
+    const desde = fechaClaveLocal(inicio);
+    const finSemana = new Date(
+      inicio.getFullYear(),
+      inicio.getMonth(),
+      inicio.getDate() + 6
+    );
+    const hasta = fechaClaveLocal(finSemana);
+    const r = await apiFetch(
+      "/registro/dias?desde=" +
+        encodeURIComponent(desde) +
+        "&hasta=" +
+        encodeURIComponent(hasta)
+    );
+    if (!r.ok) throw new Error(await parseError(r));
+    const list = await r.json();
+    const map = {};
+    list.forEach(function (row) {
+      map[row.fecha] = {
+        conductor: row.conductor,
+        acompanante: row.acompanante,
+      };
+    });
+    return map;
+  }
+
+  function renderEstado(data, registroPorFecha) {
     lastEstadoData = data;
+    window.__trenLastEstado = data;
+    if (registroPorFecha != null) {
+      lastRegistroPorFecha = registroPorFecha;
+    }
     fechaEl.textContent = data.fecha || t("dash");
 
     const orden = data.acompaniantes_orden || [];
@@ -561,7 +612,7 @@
     const nd = data.no_disponibles_hoy || [];
     noDispEl.textContent = nd.length ? nd.join(", ") : t("none");
 
-    renderAlmanaqueSemanal(data);
+    renderAlmanaqueSemanal(data, lastRegistroPorFecha);
     renderConductoresRef(data);
     renderAcompaniantesRef(data);
   }
@@ -572,7 +623,13 @@
       const r = await apiFetch("/estado/hoy");
       if (!r.ok) throw new Error(await parseError(r));
       const data = await r.json();
-      renderEstado(data);
+      let regMap = null;
+      try {
+        regMap = await cargarRegistroSemanaActual(new Date());
+      } catch (err) {
+        console.warn(err);
+      }
+      renderEstado(data, regMap != null ? regMap : undefined);
       setMsg("", "");
     } catch (e) {
       setMsg(String(e.message || e), "error");
@@ -642,7 +699,7 @@
 
   window.addEventListener("tren-lang-change", function () {
     window.trenI18n.syncLangSelects();
-    if (lastEstadoData) renderEstado(lastEstadoData);
+    if (lastEstadoData) renderEstado(lastEstadoData, lastRegistroPorFecha);
   });
 
   if (auth && auth.token) {

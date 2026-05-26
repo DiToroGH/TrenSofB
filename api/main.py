@@ -367,6 +367,8 @@ def listar_registro_dias(
     d1 = _normalizar_fecha_iso(hasta.strip())
     if d0 > d1:
         raise HTTPException(status_code=400, detail="'desde' no puede ser posterior a 'hasta'.")
+    limite_retencion = (date.today() - timedelta(days=122)).isoformat()
+    repo.purgar_registro_antes_de(limite_retencion)
     rows = repo.list_registro_dias_entre(d0, d1)
     return [
         RegistroDiaOut(fecha=f, conductor=c, acompanante=a) for f, c, a in rows

@@ -224,6 +224,17 @@ def upsert_registro_dia(fecha: str, conductor: str, acompanante: str | None) -> 
         conn.close()
 
 
+def purgar_registro_antes_de(fecha_limite: str) -> None:
+    """Elimina registros con fecha anterior a `fecha_limite` (YYYY-MM-DD)."""
+    conn = sqlite3.connect(DB_FILE)
+    try:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM registro_dia WHERE fecha < ?", (fecha_limite,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def list_registro_dias_entre(desde: str, hasta: str) -> list[tuple[str, str, str | None]]:
     conn = sqlite3.connect(DB_FILE)
     try:

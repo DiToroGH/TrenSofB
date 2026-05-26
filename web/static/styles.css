@@ -379,6 +379,46 @@ body {
   color: #ffb4b4;
 }
 
+/* Registros históricos */
+.registros-log {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #121a26;
+  max-height: 16rem;
+  overflow-y: auto;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.registros-log-empty {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 0.9rem;
+}
+
+.registro-log-line {
+  margin: 0 0 0.35rem;
+  word-break: break-word;
+}
+
+.registro-log-line:last-child {
+  margin-bottom: 0;
+}
+
+.registro-log-fecha {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.registro-log-sep {
+  color: var(--muted);
+  padding: 0 0.35rem;
+}
+
 .ref-conductores-title {
   margin: 0 0 0.35rem;
 }

@@ -10,6 +10,7 @@
   const acompaniantesRef = document.getElementById("acompaniantes-ref");
   const almanaqueEl = document.getElementById("almanaque-semanal");
   const almanaqueModoEl = document.getElementById("almanaque-modo");
+  const registrosLogEl = document.getElementById("registros-log");
 
   function t(key, vars) {
     return window.trenI18n.t(key, vars);
@@ -19,6 +20,7 @@
   let lastOrdenSerialized = null;
   let lastEstadoData = null;
   let lastRegistroPorFecha = {};
+  let lastRegistrosHistorial = [];
 
   function apiFetch(url, options) {
     const fetchOptions = Object.assign({ cache: "no-store" }, options || {});
@@ -563,6 +565,83 @@
     }
   }
 
+  function formatoFechaRegistro(iso) {
+    const d = parseIsoDateLocal(iso);
+    if (!d) return iso;
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    return dd + "/" + mm + "/" + d.getFullYear();
+  }
+
+  function appendRegistroLogSep(parent) {
+    const sep = document.createElement("span");
+    sep.className = "registro-log-sep";
+    sep.textContent = " | ";
+    parent.appendChild(sep);
+  }
+
+  async function cargarRegistrosHistorial() {
+    const hoy = new Date();
+    const desdeDate = new Date(
+      hoy.getFullYear(),
+      hoy.getMonth() - 4,
+      hoy.getDate()
+    );
+    const desde = fechaClaveLocal(desdeDate);
+    const hasta = fechaClaveLocal(hoy);
+    const r = await apiFetch(
+      "/registro/dias?desde=" +
+        encodeURIComponent(desde) +
+        "&hasta=" +
+        encodeURIComponent(hasta)
+    );
+    if (!r.ok) throw new Error(await parseError(r));
+    return await r.json();
+  }
+
+  function renderRegistrosHistorial(rows) {
+    if (!registrosLogEl) return;
+    if (rows != null) {
+      lastRegistrosHistorial = rows;
+    }
+    const list = lastRegistrosHistorial || [];
+    registrosLogEl.innerHTML = "";
+    if (!list.length) {
+      const empty = document.createElement("p");
+      empty.className = "registros-log-empty";
+      empty.textContent = t("registrosEmpty");
+      registrosLogEl.appendChild(empty);
+      return;
+    }
+    list.forEach(function (row) {
+      const line = document.createElement("p");
+      line.className = "registro-log-line";
+
+      line.appendChild(document.createTextNode(t("registroLabelFecha") + " "));
+      const fechaSpan = document.createElement("span");
+      fechaSpan.className = "registro-log-fecha";
+      fechaSpan.textContent = formatoFechaRegistro(row.fecha);
+      line.appendChild(fechaSpan);
+
+      appendRegistroLogSep(line);
+      line.appendChild(
+        document.createTextNode(
+          t("registroLabelConductor") + " " + String(row.conductor || t("dash"))
+        )
+      );
+
+      appendRegistroLogSep(line);
+      const vipTxt = row.acompanante
+        ? String(row.acompanante)
+        : t("unassigned");
+      line.appendChild(
+        document.createTextNode(t("registroLabelVip") + " " + vipTxt)
+      );
+
+      registrosLogEl.appendChild(line);
+    });
+  }
+
   async function cargarRegistroSemanaActual(hoy) {
     const inicio = inicioSemanaLunes(hoy);
     const inicioRango = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() - 7);
@@ -650,6 +729,7 @@
     renderAlmanaqueSemanal(data, lastRegistroPorFecha);
     renderConductoresRef(data);
     renderAcompaniantesRef(data);
+    renderRegistrosHistorial(null);
   }
 
   async function cargar() {
@@ -660,12 +740,21 @@
       const data = await r.json();
       const fechaRef = fechaOperativa(data);
       let regMap = null;
+      let historial = null;
       try {
-        regMap = await cargarRegistroSemanaActual(fechaRef);
+        const resultados = await Promise.all([
+          cargarRegistroSemanaActual(fechaRef),
+          cargarRegistrosHistorial(),
+        ]);
+        regMap = resultados[0];
+        historial = resultados[1];
       } catch (err) {
         console.warn(err);
       }
       renderEstado(data, regMap != null ? regMap : undefined);
+      if (historial != null) {
+        renderRegistrosHistorial(historial);
+      }
       setMsg("", "");
     } catch (e) {
       setMsg(String(e.message || e), "error");
@@ -736,6 +825,7 @@
   window.addEventListener("tren-lang-change", function () {
     window.trenI18n.syncLangSelects();
     if (lastEstadoData) renderEstado(lastEstadoData, lastRegistroPorFecha);
+    else renderRegistrosHistorial(null);
   });
 
   if (auth && auth.token) {

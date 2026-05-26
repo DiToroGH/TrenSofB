@@ -7,6 +7,7 @@ from core.services import (
     fusionar_orden_acompaniantes_con_db,
     generar_asignacion,
     generar_texto_turno,
+    resolver_mensaje_turno,
     resolver_pareja_cierre,
 )
 
@@ -53,6 +54,22 @@ class TestGenerarTextoTurno(unittest.TestCase):
         self.assertIn("A1", t)
         self.assertIn("A3", t)
         self.assertNotIn("A2", t)
+
+
+class TestResolverMensajeTurno(unittest.TestCase):
+    def test_usa_mensaje_guardado(self):
+        estado = {
+            "mensaje_turno": "Texto personalizado",
+            "acompaniantes_orden": ["A1"],
+        }
+        msg = resolver_mensaje_turno(estado, ["C1"], ["A1"], [("C1", "A1")])
+        self.assertEqual(msg, "Texto personalizado")
+
+    def test_sin_guardado_genera_plantilla(self):
+        estado = {"acompaniantes_orden": ["A1", "A2"]}
+        msg = resolver_mensaje_turno(estado, ["C1"], ["A1", "A2"], [("C1", "A1")])
+        self.assertIn("C1", msg or "")
+        self.assertIn("A1", msg or "")
 
 
 class TestGenerarAsignacion(unittest.TestCase):

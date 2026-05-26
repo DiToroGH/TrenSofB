@@ -808,6 +808,48 @@
     }
   });
 
+  const btnGuardarMensaje = document.getElementById("btn-guardar-mensaje");
+  if (btnGuardarMensaje) {
+    btnGuardarMensaje.addEventListener("click", async function () {
+      const txt = mensajeEl.value.trim();
+      if (!txt) {
+        setMsg(t("noMsgSave"), "error");
+        return;
+      }
+      setMsg(t("updating"), "");
+      try {
+        const r = await apiFetch("/estado/mensaje-turno", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mensaje: txt }),
+        });
+        if (!r.ok) throw new Error(await parseError(r));
+        setMsg(t("msgSaved"), "ok");
+      } catch (e) {
+        setMsg(String(e.message || e), "error");
+      }
+    });
+  }
+
+  const btnRegenerarMensaje = document.getElementById("btn-regenerar-mensaje");
+  if (btnRegenerarMensaje) {
+    btnRegenerarMensaje.addEventListener("click", async function () {
+      setMsg(t("updating"), "");
+      try {
+        const r = await apiFetch("/estado/mensaje-turno/regenerar", {
+          method: "POST",
+        });
+        if (!r.ok) throw new Error(await parseError(r));
+        const data = await r.json();
+        const mt = data.mensaje_turno;
+        mensajeEl.value = mt == null || mt === undefined ? "" : String(mt);
+        setMsg(t("msgRegenerated"), "ok");
+      } catch (e) {
+        setMsg(String(e.message || e), "error");
+      }
+    });
+  }
+
   document.getElementById("btn-copiar").addEventListener("click", async () => {
     const txt = mensajeEl.value.trim();
     if (!txt) {

@@ -15,9 +15,10 @@ from pydantic import BaseModel
 from core.services import (
     asignaciones_a_json,
     asignaciones_desde_json,
+    calcular_mensaje_turno_automatico,
     estado_despues_cierre,
     generar_asignacion,
-    generar_texto_turno,
+    resolver_mensaje_turno,
     resolver_pareja_cierre,
 )
 from core.auth import (
@@ -144,6 +145,10 @@ class PutRegistroDiaBody(BaseModel):
     acompanante: str | None = None
 
 
+class MensajeTurnoBody(BaseModel):
+    mensaje: str
+
+
 def _normalizar_fecha_iso(s: str) -> str:
     try:
         datetime.strptime(s, "%Y-%m-%d")
@@ -206,17 +211,7 @@ def estado_hoy(response: Response, current_user: TokenData = Depends(get_current
     orden = estado.get("acompaniantes_orden", [])
     raw_asig = estado.get("asignaciones_hoy")
     resultados = asignaciones_desde_json(raw_asig if isinstance(raw_asig, list) else None)
-    raw_disp = estado.get("disponibles_hoy")
-    disp_msg = set(raw_disp) if isinstance(raw_disp, list) else None
-
-    mensaje: str | None = None
-    if resultados:
-        c, a = resultados[0]
-        mensaje = generar_texto_turno(c, a, orden, disponibles=disp_msg)
-    elif conductores and orden:
-        mensaje = generar_texto_turno(
-            conductores[0], orden[0], orden, disponibles=disp_msg
-        )
+    mensaje = resolver_mensaje_turno(estado, conductores, orden, resultados)
 
     conductores_items: list[ConductorItem] = []
     acompaniantes_items: list[AcompanianteItem] = []
@@ -273,17 +268,15 @@ def generar_asignacion_endpoint(body: GenerarAsignacionBody, admin_user: TokenDa
     estado["no_disponibles_hoy"] = no_disp
     estado["asignaciones_hoy"] = asignaciones_a_json(asignaciones)
     estado["disponibles_hoy"] = [x for x in orden if x in disponibles]
-    repo.guardar_estado(estado)
-
     disp_turno = set(disponibles)
-    mensaje_turno: str | None = None
-    if asignaciones:
-        c0, a0 = asignaciones[0]
-        mensaje_turno = generar_texto_turno(c0, a0, orden, disponibles=disp_turno)
-    elif conductores and orden:
-        mensaje_turno = generar_texto_turno(
-            conductores[0], orden[0], orden, disponibles=disp_turno
-        )
+    mensaje_turno = calcular_mensaje_turno_automatico(
+        conductores, orden, asignaciones, disponibles=disp_turno
+    )
+    if mensaje_turno:
+        estado["mensaje_turno"] = mensaje_turno
+    else:
+        estado.pop("mensaje_turno", None)
+    repo.guardar_estado(estado)
 
     return GenerarAsignacionResponse(
         asignaciones=[
@@ -337,16 +330,18 @@ def cerrar_dia(admin_user: TokenData = Depends(get_admin_user)):
     )
     estado.pop("asignaciones_hoy", None)
     estado.pop("disponibles_hoy", None)
+    estado.pop("mensaje_turno", None)
     repo.guardar_estado(estado)
     persistir_orden_sqlite_acompaniantes_desde_estado(estado)
 
     orden_after = estado.get("acompaniantes_orden", [])
     conductores_after = repo.cargar_conductores()
-    mensaje_turno: str | None = None
-    if conductores_after and orden_after:
-        mensaje_turno = generar_texto_turno(
-            conductores_after[0], orden_after[0], orden_after
-        )
+    mensaje_turno = calcular_mensaje_turno_automatico(
+        conductores_after, orden_after, []
+    )
+    if mensaje_turno:
+        estado["mensaje_turno"] = mensaje_turno
+        repo.guardar_estado(estado)
 
     return CerrarDiaResponse(
         fecha=estado["fecha"],
@@ -354,6 +349,44 @@ def cerrar_dia(admin_user: TokenData = Depends(get_admin_user)):
         mensaje="Día cerrado. Orden de mañana actualizado.",
         mensaje_turno=mensaje_turno,
     )
+
+
+@app.put("/estado/mensaje-turno")
+def guardar_mensaje_turno(
+    body: MensajeTurnoBody,
+    admin_user: TokenData = Depends(get_admin_user),
+):
+    _ = admin_user
+    estado = repo.cargar_estado()
+    fusionar_estado_acompaniantes(estado)
+    texto = str(body.mensaje or "").strip()
+    if not texto:
+        raise HTTPException(status_code=400, detail="El mensaje no puede estar vacío.")
+    estado["mensaje_turno"] = texto
+    repo.guardar_estado(estado)
+    return {"mensaje_turno": texto}
+
+
+@app.post("/estado/mensaje-turno/regenerar")
+def regenerar_mensaje_turno(admin_user: TokenData = Depends(get_admin_user)):
+    _ = admin_user
+    estado = repo.cargar_estado()
+    fusionar_estado_acompaniantes(estado)
+    conductores = repo.cargar_conductores()
+    orden = estado.get("acompaniantes_orden", [])
+    raw_asig = estado.get("asignaciones_hoy")
+    resultados = asignaciones_desde_json(raw_asig if isinstance(raw_asig, list) else None)
+    raw_disp = estado.get("disponibles_hoy")
+    disp_msg = set(raw_disp) if isinstance(raw_disp, list) else None
+    mensaje = calcular_mensaje_turno_automatico(
+        conductores, orden, resultados, disponibles=disp_msg
+    )
+    if mensaje:
+        estado["mensaje_turno"] = mensaje
+    else:
+        estado.pop("mensaje_turno", None)
+    repo.guardar_estado(estado)
+    return {"mensaje_turno": mensaje}
 
 
 @app.get("/registro/dias", response_model=list[RegistroDiaOut])

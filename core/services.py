@@ -57,6 +57,40 @@ def generar_texto_turno(
     )
 
 
+def calcular_mensaje_turno_automatico(
+    conductores: list[str],
+    orden_acompaniantes: list[str],
+    resultados: list[tuple[str, str]],
+    *,
+    disponibles: set[str] | frozenset[str] | None = None,
+) -> str | None:
+    if resultados:
+        c, a = resultados[0]
+        return generar_texto_turno(c, a, orden_acompaniantes, disponibles=disponibles)
+    if conductores and orden_acompaniantes:
+        return generar_texto_turno(
+            conductores[0], orden_acompaniantes[0], orden_acompaniantes, disponibles=disponibles
+        )
+    return None
+
+
+def resolver_mensaje_turno(
+    estado: dict,
+    conductores: list[str],
+    orden_acompaniantes: list[str],
+    resultados: list[tuple[str, str]],
+) -> str | None:
+    """Mensaje guardado en estado, o plantilla automática si no hay uno personalizado."""
+    guardado = estado.get("mensaje_turno")
+    if isinstance(guardado, str) and guardado.strip():
+        return guardado.strip()
+    raw_disp = estado.get("disponibles_hoy")
+    disp_msg = set(raw_disp) if isinstance(raw_disp, list) else None
+    return calcular_mensaje_turno_automatico(
+        conductores, orden_acompaniantes, resultados, disponibles=disp_msg
+    )
+
+
 def generar_asignacion(
     conductores: list[str],
     orden_acompaniantes: list[str],

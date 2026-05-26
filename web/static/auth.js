@@ -114,7 +114,11 @@ class AuthManager {
     const regPasadoBtn = document.getElementById('btn-registro-pasado');
     const cardDisp = document.getElementById('card-disponibilidad');
     const gridHoy = document.getElementById('grid-hoy-asignaciones');
-    
+    const mensajeTa = document.getElementById('mensaje-turno');
+    const mensajeHint = document.getElementById('mensaje-turno-hint');
+    const btnGuardarMsg = document.getElementById('btn-guardar-mensaje');
+    const btnRegenMsg = document.getElementById('btn-regenerar-mensaje');
+
     if (this.userType === 'admin') {
       genBtn.style.display = 'block';
       cerrarBtn.style.display = 'block';
@@ -122,6 +126,10 @@ class AuthManager {
       if (regPasadoBtn) regPasadoBtn.style.display = 'block';
       if (cardDisp) cardDisp.style.display = '';
       if (gridHoy) gridHoy.classList.remove('grid-2--solo-asignaciones');
+      if (mensajeTa) mensajeTa.readOnly = false;
+      if (mensajeHint) mensajeHint.style.display = '';
+      if (btnGuardarMsg) btnGuardarMsg.style.display = '';
+      if (btnRegenMsg) btnRegenMsg.style.display = '';
     } else {
       genBtn.style.display = 'none';
       cerrarBtn.style.display = 'none';
@@ -129,6 +137,10 @@ class AuthManager {
       if (regPasadoBtn) regPasadoBtn.style.display = 'none';
       if (cardDisp) cardDisp.style.display = 'none';
       if (gridHoy) gridHoy.classList.add('grid-2--solo-asignaciones');
+      if (mensajeTa) mensajeTa.readOnly = true;
+      if (mensajeHint) mensajeHint.style.display = 'none';
+      if (btnGuardarMsg) btnGuardarMsg.style.display = 'none';
+      if (btnRegenMsg) btnRegenMsg.style.display = 'none';
     }
   }
 

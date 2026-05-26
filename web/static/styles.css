@@ -488,6 +488,17 @@ body {
   margin-bottom: 0.6rem;
 }
 
+.mensaje-turno-hint {
+  margin-top: 0;
+}
+
+.mensaje-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .hint {
   margin: 0 0 0.75rem;
   font-size: 0.85rem;

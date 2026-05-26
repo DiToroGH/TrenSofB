@@ -177,6 +177,25 @@ class TestApiAislada(unittest.TestCase):
         self.assertIn("conductor", rows[0])
         self.assertIn("acompanante", rows[0])
 
+    def test_guardar_y_regenerar_mensaje_turno(self):
+        h = _admin_auth_headers(self.client)
+        custom = "Mensaje de prueba personalizado."
+        r = self.client.put(
+            "/estado/mensaje-turno",
+            json={"mensaje": custom},
+            headers=h,
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["mensaje_turno"], custom)
+
+        r2 = self.client.get("/estado/hoy", headers=h)
+        self.assertEqual(r2.status_code, 200)
+        self.assertEqual(r2.json()["mensaje_turno"], custom)
+
+        r3 = self.client.post("/estado/mensaje-turno/regenerar", headers=h)
+        self.assertEqual(r3.status_code, 200)
+        self.assertNotEqual(r3.json()["mensaje_turno"], custom)
+
     def test_put_registro_dia_pasado_sin_vip(self):
         h = _admin_auth_headers(self.client)
         r = self.client.get("/estado/hoy", headers=h)

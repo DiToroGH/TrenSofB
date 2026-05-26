@@ -100,8 +100,13 @@
         <p id="resumen-hoy" class="resumen" data-i18n="summaryLoading">Cargando…</p>
         <div class="mensaje-wrap">
           <label for="mensaje-turno" data-i18n="msgTurnLabel">Mensaje de turno</label>
+          <p id="mensaje-turno-hint" class="hint mensaje-turno-hint" style="display: none;" data-i18n="msgTurnEditHint">Podés editar el texto. Guardalo o regenerá la plantilla automática.</p>
           <textarea id="mensaje-turno" readonly rows="6"></textarea>
-          <button type="button" id="btn-copiar" class="btn secondary" data-i18n="btnCopyMsg">Copiar mensaje</button>
+          <div class="mensaje-actions">
+            <button type="button" id="btn-guardar-mensaje" class="btn primary" style="display: none;" data-i18n="btnSaveMsg">Guardar mensaje</button>
+            <button type="button" id="btn-regenerar-mensaje" class="btn secondary" style="display: none;" data-i18n="btnRegenMsg">Regenerar automático</button>
+            <button type="button" id="btn-copiar" class="btn secondary" data-i18n="btnCopyMsg">Copiar mensaje</button>
+          </div>
         </div>
       </section>
 

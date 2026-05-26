@@ -45,6 +45,9 @@ class TestGenerarTextoTurno(unittest.TestCase):
         self.assertIn("A1", t)
         self.assertIn("A2", t)
         self.assertIn("A3", t)
+        self.assertIn("tonight", t)
+        self.assertIn("the replacement are this A2, A3", t)
+        self.assertIn("If all three fail", t)
 
     def test_respaldo_solo_entre_disponibles(self):
         t = generar_texto_turno(
@@ -54,6 +57,31 @@ class TestGenerarTextoTurno(unittest.TestCase):
         self.assertIn("A1", t)
         self.assertIn("A3", t)
         self.assertNotIn("A2", t)
+        self.assertIn("the replacement are this A3", t)
+        self.assertIn("If all two fail", t)
+
+    def test_formato_lista_larga_respaldos(self):
+        orden = [
+            "Monicaj",
+            "annapine",
+            "Bronco972",
+            "Flo291990",
+            "Borgeess",
+            "Solely1",
+            "Suki100",
+            "AllyCat83",
+            "BigH80",
+            "JRod89",
+        ]
+        t = generar_texto_turno("LT Chipman", "annapine", orden)
+        self.assertIn("tonight", t)
+        self.assertIn("VIP passenger is annapine", t)
+        self.assertIn(
+            "the replacement are this Bronco972, Flo291990, Borgeess, Solely1, "
+            "Suki100, AllyCat83, BigH80, JRod89, Monicaj",
+            t,
+        )
+        self.assertIn("If all ten fail", t)
 
 
 class TestResolverMensajeTurno(unittest.TestCase):

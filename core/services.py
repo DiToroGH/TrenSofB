@@ -24,6 +24,41 @@ def fusionar_orden_acompaniantes_con_db(
     return [a for a in orden_actual if a in acompaniantes_db] + faltantes
 
 
+_ENGLISH_COUNT_WORDS: dict[int, str] = {
+    1: "one",
+    2: "two",
+    3: "three",
+    4: "four",
+    5: "five",
+    6: "six",
+    7: "seven",
+    8: "eight",
+    9: "nine",
+    10: "ten",
+    11: "eleven",
+    12: "twelve",
+}
+
+
+def _respaldos_en_orden(acomp: str, circulo: list[str]) -> list[str]:
+    """Resto del orden circular después del VIP (sin repetir al VIP)."""
+    if not circulo:
+        return []
+    if acomp == "SIN ACOMPAÑANTE" or acomp not in circulo:
+        return list(circulo)
+    if len(circulo) == 1:
+        return []
+    idx = circulo.index(acomp)
+    n = len(circulo)
+    return [circulo[(idx + k) % n] for k in range(1, n)]
+
+
+def _total_contactos_fallo(acomp: str, respaldos: list[str]) -> int:
+    if acomp and acomp != "SIN ACOMPAÑANTE":
+        return 1 + len(respaldos)
+    return len(respaldos)
+
+
 def generar_texto_turno(
     conductor: str,
     acomp: str,
@@ -31,30 +66,30 @@ def generar_texto_turno(
     *,
     disponibles: set[str] | frozenset[str] | None = None,
 ) -> str:
-    """Si `disponibles` no es None, respaldos 2 y 3 solo recorren gente marcada disponible hoy."""
+    """Si `disponibles` no es None, la lista de reemplazos solo incluye gente disponible hoy."""
     orden = list(orden_acompaniantes)
     if disponibles is not None:
         circulo = [x for x in orden if x in disponibles]
     else:
         circulo = orden
 
-    respaldo_1 = acomp
-    respaldo_2 = acomp
-    if circulo:
-        try:
-            idx = circulo.index(acomp)
-        except ValueError:
-            idx = 0
-        n = len(circulo)
-        respaldo_1 = circulo[(idx + 1) % n]
-        respaldo_2 = circulo[(idx + 2) % n]
-    return (
-        f'Hello {conductor} , tomorrow it\'s your turn to drive the train, and your VIP passenger is '
-        f'"{acomp}" . Try to contact him ahead of time and coordinate the schedule so he\'ll be ready. '
-        f'If you don\'t get a response from {acomp}, the replacement is {respaldo_1}. '
-        f'If neither of them responds, the third person to contact is {respaldo_2}. '
-        "If all three fail, let me know 😅. Di Toro."
+    respaldos = _respaldos_en_orden(acomp, circulo)
+    lista_respaldos = ", ".join(respaldos)
+    total = _total_contactos_fallo(acomp, respaldos)
+    total_word = _ENGLISH_COUNT_WORDS.get(total, str(total))
+
+    cuerpo = (
+        f"Hello {conductor} , tonight it's your turn to drive the train, and your VIP passenger is "
+        f"{acomp} . Try to contact them ahead of time and coordinate the schedule so they'll be ready. "
     )
+    if respaldos:
+        cuerpo += (
+            f"If you don't get a response from {acomp}, the replacement are this {lista_respaldos} . "
+            f"If all {total_word} fail, let me know 😅. Di Toro."
+        )
+    else:
+        cuerpo += f"If you don't get a response from {acomp}, let me know 😅. Di Toro."
+    return cuerpo
 
 
 def calcular_mensaje_turno_automatico(

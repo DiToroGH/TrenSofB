@@ -24,6 +24,8 @@ def fusionar_orden_acompaniantes_con_db(
     return [a for a in orden_actual if a in acompaniantes_db] + faltantes
 
 
+MAX_RESPALDOS_MENSAJE = 9
+
 _ENGLISH_COUNT_WORDS: dict[int, str] = {
     1: "one",
     2: "two",
@@ -41,16 +43,17 @@ _ENGLISH_COUNT_WORDS: dict[int, str] = {
 
 
 def _respaldos_en_orden(acomp: str, circulo: list[str]) -> list[str]:
-    """Resto del orden circular después del VIP (sin repetir al VIP)."""
+    """Hasta 9 reemplazos en orden circular después del VIP (sin repetir al VIP)."""
     if not circulo:
         return []
     if acomp == "SIN ACOMPAÑANTE" or acomp not in circulo:
-        return list(circulo)
+        return list(circulo)[:MAX_RESPALDOS_MENSAJE]
     if len(circulo) == 1:
         return []
     idx = circulo.index(acomp)
     n = len(circulo)
-    return [circulo[(idx + k) % n] for k in range(1, n)]
+    todos = [circulo[(idx + k) % n] for k in range(1, n)]
+    return todos[:MAX_RESPALDOS_MENSAJE]
 
 
 def _total_contactos_fallo(acomp: str, respaldos: list[str]) -> int:

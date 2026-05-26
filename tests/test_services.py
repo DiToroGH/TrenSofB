@@ -83,6 +83,16 @@ class TestGenerarTextoTurno(unittest.TestCase):
         )
         self.assertIn("If all ten fail", t)
 
+    def test_maximo_nueve_reemplazos(self):
+        orden = ["VIP"] + [f"A{i}" for i in range(1, 16)]
+        t = generar_texto_turno("C1", "VIP", orden)
+        parte = t.split("the replacement are this ", 1)[1].split(" . If all", 1)[0]
+        nombres = [x.strip() for x in parte.split(",")]
+        self.assertEqual(len(nombres), 9)
+        self.assertEqual(nombres[0], "A1")
+        self.assertEqual(nombres[8], "A9")
+        self.assertNotIn("A10", t)
+
 
 class TestResolverMensajeTurno(unittest.TestCase):
     def test_usa_mensaje_guardado(self):

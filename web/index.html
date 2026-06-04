@@ -98,6 +98,11 @@
         <h2 data-i18n="sectionToday">Hoy</h2>
         <p class="meta"><span data-i18n="metaDatePrefix">Fecha estado:</span> <strong id="fecha">—</strong></p>
         <p id="resumen-hoy" class="resumen" data-i18n="summaryLoading">Cargando…</p>
+        <div id="segundo-acomp-wrap" class="segundo-acomp-wrap" hidden>
+          <label for="sel-segundo-acomp" data-i18n="secondCompanionLabel">Segundo acompañante (opcional)</label>
+          <select id="sel-segundo-acomp" class="segundo-acomp-select"></select>
+          <p class="hint segundo-acomp-hint" data-i18n="secondCompanionHint">Al cerrar el día también pasa al final de la cola.</p>
+        </div>
         <div class="mensaje-wrap">
           <label for="mensaje-turno" data-i18n="msgTurnLabel">Mensaje de turno</label>
           <p id="mensaje-turno-hint" class="hint mensaje-turno-hint" style="display: none;" data-i18n="msgTurnEditHint">Podés editar el texto. Guardalo o regenerá la plantilla automática.</p>
@@ -115,11 +120,6 @@
           <h2 data-i18n="availabilityTitle">Disponibilidad (hoy)</h2>
           <p class="hint" data-i18n="availabilityHint">Marcá quiénes pueden ir. Por defecto todos disponibles.</p>
           <div id="checks" class="checks"></div>
-          <div id="segundo-acomp-wrap" class="segundo-acomp-wrap" style="display: none;">
-            <label for="sel-segundo-acomp" data-i18n="secondCompanionLabel">Segundo acompañante (opcional)</label>
-            <select id="sel-segundo-acomp" class="segundo-acomp-select"></select>
-            <p class="hint segundo-acomp-hint" data-i18n="secondCompanionHint">Al cerrar el día también pasa al final de la cola.</p>
-          </div>
         </section>
 
         <section id="card-asignaciones" class="card card-asignaciones">

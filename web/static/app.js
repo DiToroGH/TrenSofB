@@ -775,11 +775,13 @@
     const cond = data.conductores || [];
     const asig = data.asignaciones || [];
 
-    if (auth && auth.isAdmin()) {
-      if (wrapSegundoAcomp) wrapSegundoAcomp.style.display = "";
-      renderSegundoAcompanianteSelect(data);
-    } else if (wrapSegundoAcomp) {
-      wrapSegundoAcomp.style.display = "none";
+    if (wrapSegundoAcomp) {
+      if (auth && auth.isAdmin()) {
+        wrapSegundoAcomp.hidden = false;
+        renderSegundoAcompanianteSelect(data);
+      } else {
+        wrapSegundoAcomp.hidden = true;
+      }
     }
 
     if (asig.length > 0) {

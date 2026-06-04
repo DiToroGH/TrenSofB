@@ -118,6 +118,7 @@ class AuthManager {
     const mensajeHint = document.getElementById('mensaje-turno-hint');
     const btnGuardarMsg = document.getElementById('btn-guardar-mensaje');
     const btnRegenMsg = document.getElementById('btn-regenerar-mensaje');
+    const wrapSegundoAcomp = document.getElementById('segundo-acomp-wrap');
 
     if (this.userType === 'admin') {
       genBtn.style.display = 'block';
@@ -130,6 +131,7 @@ class AuthManager {
       if (mensajeHint) mensajeHint.style.display = '';
       if (btnGuardarMsg) btnGuardarMsg.style.display = '';
       if (btnRegenMsg) btnRegenMsg.style.display = '';
+      if (wrapSegundoAcomp) wrapSegundoAcomp.hidden = false;
     } else {
       genBtn.style.display = 'none';
       cerrarBtn.style.display = 'none';
@@ -141,6 +143,7 @@ class AuthManager {
       if (mensajeHint) mensajeHint.style.display = 'none';
       if (btnGuardarMsg) btnGuardarMsg.style.display = 'none';
       if (btnRegenMsg) btnRegenMsg.style.display = 'none';
+      if (wrapSegundoAcomp) wrapSegundoAcomp.hidden = true;
     }
   }
 

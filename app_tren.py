@@ -11,6 +11,7 @@ from core.services import (
     generar_asignacion as calcular_asignacion,
     generar_texto_turno,
     resolver_pareja_cierre,
+    sanitizar_segundo_acompaniante_estado,
 )
 from infra import repositories as repo
 from infra.state_sync import persistir_orden_sqlite_acompaniantes_desde_estado
@@ -133,9 +134,12 @@ class App(tk.Tk):
         orden = self.estado.get("acompaniantes_orden", [])
         return orden[0] if orden else None
 
-    def _refrescar_combo_segundo_acomp(self):
+    def _refrescar_combo_segundo_acomp(self, *, persistir: bool = True):
         orden = self.estado.get("acompaniantes_orden", [])
         vip = self._vip_actual()
+        sanitizar_segundo_acompaniante_estado(self.estado, vip, orden)
+        if persistir:
+            repo.guardar_estado(self.estado)
         opciones = [""] + [n for n in orden if n != vip]
         self.cmb_segundo_acomp["values"] = opciones
         actual = str(self.estado.get("segundo_acompanante_hoy") or "").strip()
@@ -220,7 +224,10 @@ class App(tk.Tk):
         self.resultados = asignaciones
         self.estado["asignaciones_hoy"] = asignaciones_a_json(asignaciones)
         self.estado["disponibles_hoy"] = [x for x in orden if x in disponibles]
+        vip_nuevo = asignaciones[0][1] if asignaciones else None
+        sanitizar_segundo_acompaniante_estado(self.estado, vip_nuevo, orden)
         repo.guardar_estado(self.estado)
+        self._refrescar_combo_segundo_acomp(persistir=False)
         self.actualizar_panel_hoy()
         self.mostrar_resultados()
         self.update_idletasks()

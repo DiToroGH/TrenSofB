@@ -156,6 +156,25 @@ def generar_asignacion(
     return asignaciones, list(dict.fromkeys(no_disponibles_hoy))
 
 
+def sanitizar_segundo_acompaniante_estado(
+    estado: dict,
+    vip: str | None,
+    orden_acompaniantes: list[str] | None = None,
+) -> None:
+    """Quita segundo acompañante si coincide con el VIP o ya no es válido."""
+    raw = estado.get("segundo_acompanante_hoy")
+    if raw is None:
+        return
+    segundo = str(raw).strip()
+    if not segundo:
+        estado.pop("segundo_acompanante_hoy", None)
+        return
+    orden = list(orden_acompaniantes or estado.get("acompaniantes_orden") or [])
+    vip_ok = vip if vip and vip != "SIN ACOMPAÑANTE" else None
+    if (vip_ok and segundo == vip_ok) or segundo not in orden:
+        estado.pop("segundo_acompanante_hoy", None)
+
+
 def resolver_pareja_cierre(
     resultados: list[tuple[str, str]],
     conductores: list[str],

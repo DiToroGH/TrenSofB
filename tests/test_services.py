@@ -9,6 +9,7 @@ from core.services import (
     generar_texto_turno,
     resolver_mensaje_turno,
     resolver_pareja_cierre,
+    sanitizar_segundo_acompaniante_estado,
 )
 
 
@@ -92,6 +93,24 @@ class TestGenerarTextoTurno(unittest.TestCase):
         self.assertEqual(nombres[0], "A1")
         self.assertEqual(nombres[8], "A9")
         self.assertNotIn("A10", t)
+
+
+class TestSanitizarSegundoAcompaniante(unittest.TestCase):
+    def test_quita_si_es_el_vip(self):
+        estado = {
+            "acompaniantes_orden": ["A", "B", "C"],
+            "segundo_acompanante_hoy": "B",
+        }
+        sanitizar_segundo_acompaniante_estado(estado, "B", estado["acompaniantes_orden"])
+        self.assertNotIn("segundo_acompanante_hoy", estado)
+
+    def test_mantiene_si_es_valido(self):
+        estado = {
+            "acompaniantes_orden": ["A", "B", "C"],
+            "segundo_acompanante_hoy": "C",
+        }
+        sanitizar_segundo_acompaniante_estado(estado, "A", estado["acompaniantes_orden"])
+        self.assertEqual(estado["segundo_acompanante_hoy"], "C")
 
 
 class TestResolverMensajeTurno(unittest.TestCase):

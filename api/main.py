@@ -20,6 +20,7 @@ from core.services import (
     generar_asignacion,
     resolver_mensaje_turno,
     resolver_pareja_cierre,
+    sanitizar_segundo_acompaniante_estado,
 )
 from core.auth import (
     authenticate_user,
@@ -303,6 +304,8 @@ def generar_asignacion_endpoint(body: GenerarAsignacionBody, admin_user: TokenDa
     estado["no_disponibles_hoy"] = no_disp
     estado["asignaciones_hoy"] = asignaciones_a_json(asignaciones)
     estado["disponibles_hoy"] = [x for x in orden if x in disponibles]
+    vip_nuevo = asignaciones[0][1] if asignaciones else None
+    sanitizar_segundo_acompaniante_estado(estado, vip_nuevo, orden)
     disp_turno = set(disponibles)
     mensaje_turno = calcular_mensaje_turno_automatico(
         conductores, orden, asignaciones, disponibles=disp_turno

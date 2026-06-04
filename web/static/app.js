@@ -11,6 +11,9 @@
   const almanaqueEl = document.getElementById("almanaque-semanal");
   const almanaqueModoEl = document.getElementById("almanaque-modo");
   const registrosLogEl = document.getElementById("registros-log");
+  const wrapSegundoAcomp = document.getElementById("segundo-acomp-wrap");
+  const selSegundoAcomp = document.getElementById("sel-segundo-acomp");
+  let segundoAcompSaveTimer = null;
 
   function t(key, vars) {
     return window.trenI18n.t(key, vars);
@@ -272,6 +275,52 @@
     return v;
   }
 
+  function vipNombreDesdeData(data) {
+    const asig = data.asignaciones || [];
+    if (asig.length > 0) {
+      const v = asig[0].acompanante;
+      if (v && v !== "SIN ACOMPAÑANTE") return v;
+    }
+    const orden = data.acompaniantes_orden || [];
+    return orden.length ? orden[0] : null;
+  }
+
+  async function guardarSegundoAcompaniante(nombre) {
+    const body = { nombre: nombre ? nombre : null };
+    const r = await apiFetch("/estado/segundo-acompanante", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await parseError(r));
+    return await r.json();
+  }
+
+  function renderSegundoAcompanianteSelect(data) {
+    if (!selSegundoAcomp) return;
+    const orden = data.acompaniantes_orden || [];
+    const vip = vipNombreDesdeData(data);
+    const actual = data.segundo_acompanante || "";
+    selSegundoAcomp.innerHTML = "";
+    const optNone = document.createElement("option");
+    optNone.value = "";
+    optNone.textContent = t("secondCompanionNone");
+    selSegundoAcomp.appendChild(optNone);
+    orden.forEach(function (nombre) {
+      if (vip && nombre === vip) return;
+      const o = document.createElement("option");
+      o.value = nombre;
+      o.textContent = nombre;
+      if (nombre === actual) o.selected = true;
+      selSegundoAcomp.appendChild(o);
+    });
+    if (actual && vip && actual === vip) {
+      selSegundoAcomp.value = "";
+    } else if (actual) {
+      selSegundoAcomp.value = actual;
+    }
+  }
+
   function renderAlmanaqueSemanal(data, registroPorFecha) {
     if (!almanaqueEl) return;
     const regMap = registroPorFecha || {};
@@ -407,7 +456,7 @@
     }
   }
 
-  function renderAsignacionesLista(asig) {
+  function renderAsignacionesLista(asig, data) {
     listaAsig.innerHTML = "";
     listaAsig.className = "asig-list";
     listaAsig.setAttribute("role", "list");
@@ -469,6 +518,32 @@
       card.appendChild(laneCond);
       card.appendChild(bridge);
       card.appendChild(laneVip);
+
+      if (idx === 0 && data && data.segundo_acompanante) {
+        const bridge2 = document.createElement("div");
+        bridge2.className = "asig-bridge";
+        bridge2.setAttribute("aria-hidden", "true");
+        const bridgeLine2 = document.createElement("span");
+        bridgeLine2.className = "asig-bridge-line";
+        bridge2.appendChild(bridgeLine2);
+
+        const lane2 = document.createElement("div");
+        lane2.className = "asig-lane asig-lane--segundo";
+        const badge2 = document.createElement("span");
+        badge2.className = "asig-badge asig-badge--segundo";
+        badge2.textContent = t("badgeSecondCompanion");
+        const wrap2 = document.createElement("div");
+        wrap2.className = "asig-lane-body";
+        const name2 = document.createElement("p");
+        name2.className = "asig-nombre asig-nombre--segundo";
+        name2.textContent = data.segundo_acompanante;
+        wrap2.appendChild(name2);
+        lane2.appendChild(badge2);
+        lane2.appendChild(wrap2);
+        card.appendChild(bridge2);
+        card.appendChild(lane2);
+      }
+
       listaAsig.appendChild(card);
     });
   }
@@ -700,12 +775,27 @@
     const cond = data.conductores || [];
     const asig = data.asignaciones || [];
 
+    if (auth && auth.isAdmin()) {
+      if (wrapSegundoAcomp) wrapSegundoAcomp.style.display = "";
+      renderSegundoAcompanianteSelect(data);
+    } else if (wrapSegundoAcomp) {
+      wrapSegundoAcomp.style.display = "none";
+    }
+
     if (asig.length > 0) {
       const p = asig[0];
-      resumenEl.textContent = t("summaryToday", {
-        c: p.conductor,
-        v: resumenVipNombre(p.acompanante),
-      });
+      if (data.segundo_acompanante) {
+        resumenEl.textContent = t("summaryTodayWithSecond", {
+          c: p.conductor,
+          v: resumenVipNombre(p.acompanante),
+          s: data.segundo_acompanante,
+        });
+      } else {
+        resumenEl.textContent = t("summaryToday", {
+          c: p.conductor,
+          v: resumenVipNombre(p.acompanante),
+        });
+      }
     } else if (cond.length && orden.length) {
       resumenEl.textContent = t("summaryProposed", {
         c: cond[0],
@@ -720,7 +810,7 @@
       mensajeEl.value = mt == null || mt === undefined ? "" : String(mt);
     }
 
-    renderAsignacionesLista(asig);
+    renderAsignacionesLista(asig, data);
 
     const nd = data.no_disponibles_hoy || [];
     noDispEl.textContent = nd.length ? nd.join(", ") : t("none");
@@ -847,6 +937,24 @@
       } catch (e) {
         setMsg(String(e.message || e), "error");
       }
+    });
+  }
+
+  if (selSegundoAcomp) {
+    selSegundoAcomp.addEventListener("change", function () {
+      if (!auth || !auth.isAdmin()) return;
+      const val = selSegundoAcomp.value;
+      clearTimeout(segundoAcompSaveTimer);
+      segundoAcompSaveTimer = setTimeout(async function () {
+        setMsg(t("updating"), "");
+        try {
+          await guardarSegundoAcompaniante(val);
+          await cargar();
+          setMsg(t("secondCompanionSaved"), "ok");
+        } catch (e) {
+          setMsg(String(e.message || e), "error");
+        }
+      }, 300);
     });
   }
 

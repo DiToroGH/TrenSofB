@@ -196,6 +196,28 @@ class TestApiAislada(unittest.TestCase):
         self.assertEqual(r3.status_code, 200)
         self.assertNotEqual(r3.json()["mensaje_turno"], custom)
 
+    def test_segundo_acompaniante_y_cierre(self):
+        h = _admin_auth_headers(self.client)
+        r = self.client.get("/estado/hoy", headers=h)
+        orden = r.json()["acompaniantes_orden"]
+        self.assertGreaterEqual(len(orden), 2)
+        vip = orden[0]
+        segundo = orden[1]
+        r2 = self.client.put(
+            "/estado/segundo-acompanante",
+            json={"nombre": segundo},
+            headers=h,
+        )
+        self.assertEqual(r2.status_code, 200)
+        r3 = self.client.get("/estado/hoy", headers=h)
+        self.assertEqual(r3.json()["segundo_acompanante"], segundo)
+        r4 = self.client.put(
+            "/estado/segundo-acompanante",
+            json={"nombre": vip},
+            headers=h,
+        )
+        self.assertEqual(r4.status_code, 400)
+
     def test_put_registro_dia_pasado_sin_vip(self):
         h = _admin_auth_headers(self.client)
         r = self.client.get("/estado/hoy", headers=h)

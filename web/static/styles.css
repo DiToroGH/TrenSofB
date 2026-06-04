@@ -542,6 +542,46 @@ body {
   accent-color: var(--accent);
 }
 
+.segundo-acomp-wrap {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
+.segundo-acomp-wrap label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.segundo-acomp-select {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #121a26;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.segundo-acomp-hint {
+  margin: 0.45rem 0 0;
+  font-size: 0.78rem;
+}
+
+.asig-badge--segundo {
+  background: rgba(120, 180, 140, 0.18);
+  color: #b8e0c8;
+  border: 1px solid rgba(120, 180, 140, 0.35);
+}
+
+.asig-nombre--segundo {
+  color: #d4f0dc;
+  font-weight: 600;
+}
+
 .grid-2 {
   display: grid;
   gap: 1rem;

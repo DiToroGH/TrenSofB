@@ -75,6 +75,13 @@ class App(tk.Tk):
             "<Configure>",
             lambda e: self.canvas_checks.itemconfigure(self.canvas_checks_window, width=e.width)
         )
+        ttk.Label(left, text="Segundo acompañante (opcional):").pack(anchor="w", pady=(8, 2))
+        self.var_segundo_acomp = tk.StringVar(value="")
+        self.cmb_segundo_acomp = ttk.Combobox(
+            left, textvariable=self.var_segundo_acomp, state="readonly", width=36
+        )
+        self.cmb_segundo_acomp.pack(anchor="w", fill="x")
+        self.cmb_segundo_acomp.bind("<<ComboboxSelected>>", self._on_segundo_acomp_change)
 
         right = ttk.LabelFrame(frame_mid, text="Asignaciones", padding=10)
         right.pack(side="left", fill="both", expand=True, padx=(5, 0))
@@ -113,9 +120,43 @@ class App(tk.Tk):
             ).pack(anchor="w")
         self.canvas_checks.update_idletasks()
         self.canvas_checks.configure(scrollregion=self.canvas_checks.bbox("all"))
+        self._refrescar_combo_segundo_acomp()
         self.lbl_orden.config(text=f"Orden actual acompañantes: {self.estado['acompaniantes_orden']}")
         self.actualizar_panel_hoy()
         self.mostrar_resultados()
+
+    def _vip_actual(self) -> str | None:
+        if self.resultados:
+            a = self.resultados[0][1]
+            if a and a != "SIN ACOMPAÑANTE":
+                return a
+        orden = self.estado.get("acompaniantes_orden", [])
+        return orden[0] if orden else None
+
+    def _refrescar_combo_segundo_acomp(self):
+        orden = self.estado.get("acompaniantes_orden", [])
+        vip = self._vip_actual()
+        opciones = [""] + [n for n in orden if n != vip]
+        self.cmb_segundo_acomp["values"] = opciones
+        actual = str(self.estado.get("segundo_acompanante_hoy") or "").strip()
+        if actual and actual in opciones:
+            self.var_segundo_acomp.set(actual)
+        else:
+            self.var_segundo_acomp.set("")
+
+    def _on_segundo_acomp_change(self, _event=None):
+        elegido = self.var_segundo_acomp.get().strip()
+        vip = self._vip_actual()
+        if elegido and vip and elegido == vip:
+            messagebox.showwarning("Atención", "No puede ser el mismo VIP del turno.")
+            self._refrescar_combo_segundo_acomp()
+            return
+        if elegido:
+            self.estado["segundo_acompanante_hoy"] = elegido
+        else:
+            self.estado.pop("segundo_acompanante_hoy", None)
+        repo.guardar_estado(self.estado)
+        self.actualizar_panel_hoy()
 
     def _disponibles_para_mensaje(self) -> set[str] | None:
         raw = self.estado.get("disponibles_hoy")
@@ -128,9 +169,13 @@ class App(tk.Tk):
     def actualizar_panel_hoy(self):
         orden = self.estado.get("acompaniantes_orden", [])
         disp = self._disponibles_para_mensaje()
+        segundo = str(self.estado.get("segundo_acompanante_hoy") or "").strip()
         if self.resultados:
             conductor, acomp = self.resultados[0]
-            self.lbl_hoy.config(text=f"Hoy: {conductor} con {acomp}")
+            txt = f"Hoy: {conductor} con {acomp}"
+            if segundo:
+                txt += f" y {segundo}"
+            self.lbl_hoy.config(text=txt)
             self.lbl_msg_turno.config(
                 text=generar_texto_turno(conductor, acomp, orden, disponibles=disp)
             )
@@ -186,8 +231,12 @@ class App(tk.Tk):
             self.txt_resultados.insert(tk.END, "Aún no hay asignaciones.\n")
             return
         self.txt_resultados.insert(tk.END, "Asignación de hoy:\n\n")
-        for conductor, acomp in self.resultados:
-            self.txt_resultados.insert(tk.END, f"- {conductor} -> {acomp}\n")
+        segundo = str(self.estado.get("segundo_acompanante_hoy") or "").strip()
+        for i, (conductor, acomp) in enumerate(self.resultados):
+            linea = f"- {conductor} -> {acomp}"
+            if i == 0 and segundo:
+                linea += f" (+ 2.º acomp.: {segundo})"
+            self.txt_resultados.insert(tk.END, linea + "\n")
         nd = self.estado.get("no_disponibles_hoy", [])
         self.txt_resultados.insert(tk.END, "\nNo disponibles hoy (suben al tope mañana):\n")
         self.txt_resultados.insert(tk.END, f"{nd if nd else 'Ninguno'}\n")
@@ -198,6 +247,7 @@ class App(tk.Tk):
             self.conductores,
             self.estado["acompaniantes_orden"],
         )
+        segundo_hoy = str(self.estado.get("segundo_acompanante_hoy") or "").strip() or None
 
         if conductor_hoy:
             repo.mover_persona_al_final("conductores", conductor_hoy)
@@ -207,6 +257,7 @@ class App(tk.Tk):
             conductor_hoy,
             acomp_hoy,
             str(date.today()),
+            segundo_acompanante_hoy=segundo_hoy,
         )
         self.estado.pop("asignaciones_hoy", None)
         self.estado.pop("disponibles_hoy", None)

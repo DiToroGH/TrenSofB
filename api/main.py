@@ -113,6 +113,7 @@ class EstadoHoyResponse(BaseModel):
     conductores_items: list[ConductorItem] = []
     acompaniantes_items: list[AcompanianteItem] = []
     mensaje_turno: str | None = None
+    segundo_acompanante: str | None = None
 
 
 class GenerarAsignacionBody(BaseModel):
@@ -147,6 +148,10 @@ class PutRegistroDiaBody(BaseModel):
 
 class MensajeTurnoBody(BaseModel):
     mensaje: str
+
+
+class SegundoAcompanianteBody(BaseModel):
+    nombre: str | None = None
 
 
 def _normalizar_fecha_iso(s: str) -> str:
@@ -243,7 +248,37 @@ def estado_hoy(response: Response, current_user: TokenData = Depends(get_current
         conductores_items=conductores_items,
         acompaniantes_items=acompaniantes_items,
         mensaje_turno=mensaje,
+        segundo_acompanante=_segundo_acompanante_desde_estado(estado),
     )
+
+
+def _segundo_acompanante_desde_estado(estado: dict) -> str | None:
+    raw = estado.get("segundo_acompanante_hoy")
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    return s if s else None
+
+
+def _validar_segundo_acompaniante(
+    nombre: str | None,
+    orden: list[str],
+    vip: str | None,
+) -> str | None:
+    if nombre is None or not str(nombre).strip():
+        return None
+    elegido = str(nombre).strip()
+    if elegido not in orden:
+        raise HTTPException(
+            status_code=400,
+            detail="El segundo acompañante debe estar en el orden actual.",
+        )
+    if vip and elegido == vip:
+        raise HTTPException(
+            status_code=400,
+            detail="El segundo acompañante no puede ser el mismo VIP del turno.",
+        )
+    return elegido
 
 
 @app.post("/asignacion/generar", response_model=GenerarAsignacionResponse)
@@ -322,11 +357,14 @@ def cerrar_dia(admin_user: TokenData = Depends(get_admin_user)):
         fecha_estado = date.today()
     fecha_maniana = (fecha_estado + timedelta(days=1)).isoformat()
 
+    segundo_hoy = _segundo_acompanante_desde_estado(estado)
+
     estado = estado_despues_cierre(
         estado,
         conductor_hoy,
         acomp_hoy,
         fecha_maniana,
+        segundo_acompanante_hoy=segundo_hoy,
     )
     estado.pop("asignaciones_hoy", None)
     estado.pop("disponibles_hoy", None)
@@ -349,6 +387,27 @@ def cerrar_dia(admin_user: TokenData = Depends(get_admin_user)):
         mensaje="Día cerrado. Orden de mañana actualizado.",
         mensaje_turno=mensaje_turno,
     )
+
+
+@app.put("/estado/segundo-acompanante")
+def guardar_segundo_acompaniante(
+    body: SegundoAcompanianteBody,
+    admin_user: TokenData = Depends(get_admin_user),
+):
+    _ = admin_user
+    estado = repo.cargar_estado()
+    fusionar_estado_acompaniantes(estado)
+    orden = estado.get("acompaniantes_orden", [])
+    raw_asig = estado.get("asignaciones_hoy")
+    resultados = asignaciones_desde_json(raw_asig if isinstance(raw_asig, list) else None)
+    vip = resultados[0][1] if resultados else (orden[0] if orden else None)
+    elegido = _validar_segundo_acompaniante(body.nombre, orden, vip)
+    if elegido:
+        estado["segundo_acompanante_hoy"] = elegido
+    else:
+        estado.pop("segundo_acompanante_hoy", None)
+    repo.guardar_estado(estado)
+    return {"segundo_acompanante": elegido}
 
 
 @app.put("/estado/mensaje-turno")

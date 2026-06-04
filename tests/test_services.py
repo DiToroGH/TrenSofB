@@ -158,6 +158,19 @@ class TestCierre(unittest.TestCase):
         self.assertEqual(nuevo["no_disponibles_hoy"], [])
         self.assertEqual(nuevo["fecha"], "2020-01-02")
 
+    def test_estado_despues_cierre_segundo_acomp_al_final(self):
+        estado = {
+            "fecha": "2020-01-01",
+            "acompaniantes_orden": ["A", "B", "C"],
+            "no_disponibles_hoy": [],
+            "segundo_acompanante_hoy": "B",
+        }
+        nuevo = estado_despues_cierre(
+            estado, "D", "A", "2020-01-02", segundo_acompanante_hoy="B"
+        )
+        self.assertEqual(nuevo["acompaniantes_orden"], ["C", "A", "B"])
+        self.assertNotIn("segundo_acompanante_hoy", nuevo)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -55,6 +55,13 @@
       availabilityTitle: "Disponibilidad (hoy)",
       availabilityHint:
         "Marcá quiénes pueden ir. Por defecto todos disponibles.",
+      secondCompanionLabel: "Segundo acompañante (opcional)",
+      secondCompanionHint:
+        "Al cerrar el día también pasa al final de la cola.",
+      secondCompanionNone: "Ninguno",
+      badgeSecondCompanion: "2.º acompañante",
+      secondCompanionSaved: "Segundo acompañante guardado.",
+      summaryTodayWithSecond: "Hoy: {c} con {v} y {s}",
       assignmentsTitle: "Asignaciones",
       assignmentsIntro:
         "Cada bloque es un tren: <strong>Conductor</strong> al volante y <strong>VIP</strong> como acompañante.",
@@ -196,6 +203,13 @@
       msgRegenerated: "Message regenerated from template.",
       availabilityTitle: "Availability (today)",
       availabilityHint: "Check who can go. Everyone is available by default.",
+      secondCompanionLabel: "Second companion (optional)",
+      secondCompanionHint:
+        "When closing the day they also move to the end of the queue.",
+      secondCompanionNone: "None",
+      badgeSecondCompanion: "2nd companion",
+      secondCompanionSaved: "Second companion saved.",
+      summaryTodayWithSecond: "Today: {c} with {v} and {s}",
       assignmentsTitle: "Assignments",
       assignmentsIntro:
         "Each block is a train: <strong>Driver</strong> at the wheel and <strong>VIP</strong> as companion.",
@@ -337,6 +351,13 @@
       availabilityTitle: "Disponibilidade (hoje)",
       availabilityHint:
         "Marque quem pode ir. Por defeito todos disponíveis.",
+      secondCompanionLabel: "Segundo acompanhante (opcional)",
+      secondCompanionHint:
+        "Ao fechar o dia também vai para o fim da fila.",
+      secondCompanionNone: "Nenhum",
+      badgeSecondCompanion: "2.º acompanhante",
+      secondCompanionSaved: "Segundo acompanhante guardado.",
+      summaryTodayWithSecond: "Hoje: {c} com {v} e {s}",
       assignmentsTitle: "Atribuições",
       assignmentsIntro:
         "Cada bloco é um comboio: <strong>Condutor</strong> ao volante e <strong>VIP</strong> como acompanhante.",

@@ -168,24 +168,32 @@ def resolver_pareja_cierre(
     return conductor_hoy, acomp_hoy
 
 
+def _mover_acompaniante_al_final(orden: list[str], nombre: str | None) -> None:
+    if (
+        nombre
+        and nombre != "SIN ACOMPAÑANTE"
+        and nombre in orden
+    ):
+        orden.remove(nombre)
+        orden.append(nombre)
+
+
 def estado_despues_cierre(
     estado: dict,
     conductor_hoy: str | None,
     acomp_hoy: str | None,
     fecha: str,
+    *,
+    segundo_acompanante_hoy: str | None = None,
 ) -> dict:
     nuevo = {**estado, "acompaniantes_orden": list(estado.get("acompaniantes_orden", []))}
     nd = list(estado.get("no_disponibles_hoy", []))
     actual = nuevo["acompaniantes_orden"]
     resto = [x for x in actual if x not in nd]
     nuevo["acompaniantes_orden"] = nd + resto
-    if (
-        acomp_hoy
-        and acomp_hoy != "SIN ACOMPAÑANTE"
-        and acomp_hoy in nuevo["acompaniantes_orden"]
-    ):
-        nuevo["acompaniantes_orden"].remove(acomp_hoy)
-        nuevo["acompaniantes_orden"].append(acomp_hoy)
+    _mover_acompaniante_al_final(nuevo["acompaniantes_orden"], acomp_hoy)
+    _mover_acompaniante_al_final(nuevo["acompaniantes_orden"], segundo_acompanante_hoy)
     nuevo["fecha"] = fecha
     nuevo["no_disponibles_hoy"] = []
+    nuevo.pop("segundo_acompanante_hoy", None)
     return nuevo

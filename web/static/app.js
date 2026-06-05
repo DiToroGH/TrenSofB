@@ -775,13 +775,8 @@
     const cond = data.conductores || [];
     const asig = data.asignaciones || [];
 
-    if (wrapSegundoAcomp) {
-      if (auth && auth.isAdmin()) {
-        wrapSegundoAcomp.hidden = false;
-        renderSegundoAcompanianteSelect(data);
-      } else {
-        wrapSegundoAcomp.hidden = true;
-      }
+    if (auth && auth.isAdmin() && wrapSegundoAcomp) {
+      renderSegundoAcompanianteSelect(data);
     }
 
     if (asig.length > 0) {

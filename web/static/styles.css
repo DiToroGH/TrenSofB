@@ -543,6 +543,7 @@ body {
 }
 
 .segundo-acomp-wrap {
+  display: none;
   margin: 0 0 1rem;
   padding: 0.85rem 0.9rem;
   border-radius: 8px;
@@ -550,8 +551,8 @@ body {
   background: rgba(120, 180, 140, 0.08);
 }
 
-.segundo-acomp-wrap[hidden] {
-  display: none !important;
+body.tren-modo-admin .segundo-acomp-wrap {
+  display: block;
 }
 
 .segundo-acomp-wrap label {

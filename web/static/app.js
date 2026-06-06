@@ -26,16 +26,7 @@
   let lastRegistrosHistorial = [];
 
   function apiFetch(url, options) {
-    const fetchOptions = Object.assign({ cache: "no-store" }, options || {});
-
-    if (auth && auth.token) {
-      if (!fetchOptions.headers) {
-        fetchOptions.headers = {};
-      }
-      fetchOptions.headers["Authorization"] = "Bearer " + auth.token;
-    }
-
-    return fetch(url, fetchOptions);
+    return window.trenLinea.apiFetch(url, options);
   }
 
   function setMsg(text, kind) {
@@ -301,10 +292,13 @@
     const orden = data.acompaniantes_orden || [];
     const vip = vipNombreDesdeData(data);
     const actual = data.segundo_acompanante || "";
+    const prev = selSegundoAcomp.value;
     selSegundoAcomp.innerHTML = "";
     const optNone = document.createElement("option");
     optNone.value = "";
-    optNone.textContent = t("secondCompanionNone");
+    optNone.textContent = window.trenI18n.hasKey("secondCompanionNone")
+      ? t("secondCompanionNone")
+      : "Ninguno";
     selSegundoAcomp.appendChild(optNone);
     orden.forEach(function (nombre) {
       if (vip && nombre === vip) return;
@@ -318,7 +312,19 @@
       selSegundoAcomp.value = "";
     } else if (actual) {
       selSegundoAcomp.value = actual;
+    } else if (prev && Array.from(selSegundoAcomp.options).some(function (o) {
+      return o.value === prev;
+    })) {
+      selSegundoAcomp.value = prev;
     }
+    selSegundoAcomp.disabled = !(auth && auth.isAdmin());
+  }
+
+  if (selSegundoAcomp && selSegundoAcomp.options.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "Ninguno";
+    selSegundoAcomp.appendChild(opt);
   }
 
   function renderAlmanaqueSemanal(data, registroPorFecha) {
@@ -971,6 +977,7 @@
 
   window.addEventListener("tren-lang-change", function () {
     window.trenI18n.syncLangSelects();
+    window.trenI18n.applyStatic();
     if (lastEstadoData) renderEstado(lastEstadoData, lastRegistroPorFecha);
     else renderRegistrosHistorial(null);
   });

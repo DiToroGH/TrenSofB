@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta
+import logging
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Response, Depends
+from fastapi import FastAPI, HTTPException, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -30,6 +31,8 @@ from core.auth import (
     is_admin,
     get_current_user,
 )
+from api.deps import get_linea_id
+from api.lineas import router as lineas_router
 from api.personas import router as personas_router
 from infra import repositories as repo
 from infra.state_sync import (
@@ -67,6 +70,7 @@ class LoginResponse(BaseModel):
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    logging.basicConfig(level=logging.INFO)
     repo.inicializar_db()
     yield
 
@@ -83,7 +87,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def no_cache_ui_assets(request: Request, call_next):
+    """Evita JS/CSS/HTML obsoletos tras despliegues (p. ej. VM OCI)."""
+    response = await call_next(request)
+    path = request.url.path
+    if path == "/" or (
+        path.startswith("/static/")
+        and path.rsplit(".", 1)[-1].lower() in ("js", "css", "html")
+    ):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
+
 app.include_router(personas_router)
+app.include_router(lineas_router)
 
 
 class AsignacionOut(BaseModel):
@@ -115,6 +136,8 @@ class EstadoHoyResponse(BaseModel):
     acompaniantes_items: list[AcompanianteItem] = []
     mensaje_turno: str | None = None
     segundo_acompanante: str | None = None
+    linea_id: int = 1
+    linea_nombre: str = "SofB"
 
 
 class GenerarAsignacionBody(BaseModel):
@@ -204,16 +227,26 @@ def index():
     index_path = WEB_ROOT / "index.html"
     if not index_path.is_file():
         raise HTTPException(status_code=404, detail="UI web no encontrada")
-    return FileResponse(index_path)
+    return FileResponse(
+        index_path,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+        },
+    )
 
 
 @app.get("/estado/hoy", response_model=EstadoHoyResponse)
-def estado_hoy(response: Response, current_user: TokenData = Depends(get_current_user)):
+def estado_hoy(
+    response: Response,
+    current_user: TokenData = Depends(get_current_user),
+    linea_id: int = Depends(get_linea_id),
+):
     response.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
     response.headers["Pragma"] = "no-cache"
-    estado = sincronizar_acompaniantes_en_estado_y_guardar()
+    estado = sincronizar_acompaniantes_en_estado_y_guardar(linea_id)
 
-    conductores = repo.cargar_conductores()
+    conductores = repo.cargar_conductores(linea_id)
     orden = estado.get("acompaniantes_orden", [])
     raw_asig = estado.get("asignaciones_hoy")
     resultados = asignaciones_desde_json(raw_asig if isinstance(raw_asig, list) else None)
@@ -221,12 +254,15 @@ def estado_hoy(response: Response, current_user: TokenData = Depends(get_current
 
     conductores_items: list[ConductorItem] = []
     acompaniantes_items: list[AcompanianteItem] = []
+    linea_info = repo.obtener_linea(linea_id)
+    linea_nombre = linea_info[1] if linea_info else "SofB"
+
     if is_admin(current_user):
-        filas_cond = repo.listar_personas("conductores")
+        filas_cond = repo.listar_personas("conductores", linea_id)
         conductores_items = [
             ConductorItem(id=pid, nombre=nombre) for pid, nombre in filas_cond
         ]
-        filas_acomp = repo.listar_personas("acompaniantes")
+        filas_acomp = repo.listar_personas("acompaniantes", linea_id)
         nombre_a_id = {nombre: pid for pid, nombre in filas_acomp}
         vistos: set[str] = set()
         for nombre in orden:
@@ -250,6 +286,8 @@ def estado_hoy(response: Response, current_user: TokenData = Depends(get_current
         acompaniantes_items=acompaniantes_items,
         mensaje_turno=mensaje,
         segundo_acompanante=_segundo_acompanante_desde_estado(estado),
+        linea_id=linea_id,
+        linea_nombre=linea_nombre,
     )
 
 
@@ -283,11 +321,16 @@ def _validar_segundo_acompaniante(
 
 
 @app.post("/asignacion/generar", response_model=GenerarAsignacionResponse)
-def generar_asignacion_endpoint(body: GenerarAsignacionBody, admin_user: TokenData = Depends(get_admin_user)):
-    estado = repo.cargar_estado()
-    fusionar_estado_acompaniantes(estado)
+def generar_asignacion_endpoint(
+    body: GenerarAsignacionBody,
+    admin_user: TokenData = Depends(get_admin_user),
+    linea_id: int = Depends(get_linea_id),
+):
+    _ = admin_user
+    estado = repo.cargar_estado(linea_id)
+    fusionar_estado_acompaniantes(estado, linea_id)
 
-    conductores = repo.cargar_conductores()
+    conductores = repo.cargar_conductores(linea_id)
     orden = estado.get("acompaniantes_orden", [])
 
     if not conductores:
@@ -314,7 +357,7 @@ def generar_asignacion_endpoint(body: GenerarAsignacionBody, admin_user: TokenDa
         estado["mensaje_turno"] = mensaje_turno
     else:
         estado.pop("mensaje_turno", None)
-    repo.guardar_estado(estado)
+    repo.guardar_estado(estado, linea_id)
 
     return GenerarAsignacionResponse(
         asignaciones=[
@@ -326,10 +369,14 @@ def generar_asignacion_endpoint(body: GenerarAsignacionBody, admin_user: TokenDa
 
 
 @app.post("/dia/cerrar", response_model=CerrarDiaResponse)
-def cerrar_dia(admin_user: TokenData = Depends(get_admin_user)):
-    estado = repo.cargar_estado()
-    fusionar_estado_acompaniantes(estado)
-    conductores = repo.cargar_conductores()
+def cerrar_dia(
+    admin_user: TokenData = Depends(get_admin_user),
+    linea_id: int = Depends(get_linea_id),
+):
+    _ = admin_user
+    estado = repo.cargar_estado(linea_id)
+    fusionar_estado_acompaniantes(estado, linea_id)
+    conductores = repo.cargar_conductores(linea_id)
     orden = estado.get("acompaniantes_orden", [])
     raw_asig = estado.get("asignaciones_hoy")
     resultados = asignaciones_desde_json(raw_asig if isinstance(raw_asig, list) else None)
@@ -348,10 +395,12 @@ def cerrar_dia(admin_user: TokenData = Depends(get_admin_user)):
         acomp_guardar: str | None = None
         if acomp_hoy and str(acomp_hoy).strip() and str(acomp_hoy) != "SIN ACOMPAÑANTE":
             acomp_guardar = str(acomp_hoy).strip()
-        repo.upsert_registro_dia(fecha_registro, str(conductor_hoy).strip(), acomp_guardar)
+        repo.upsert_registro_dia(
+            fecha_registro, str(conductor_hoy).strip(), acomp_guardar, linea_id
+        )
 
     if conductor_hoy:
-        repo.mover_persona_al_final("conductores", conductor_hoy)
+        repo.mover_persona_al_final("conductores", conductor_hoy, linea_id)
 
     fecha_estado_raw = str(estado.get("fecha") or str(date.today())).strip()[:10]
     try:
@@ -372,17 +421,17 @@ def cerrar_dia(admin_user: TokenData = Depends(get_admin_user)):
     estado.pop("asignaciones_hoy", None)
     estado.pop("disponibles_hoy", None)
     estado.pop("mensaje_turno", None)
-    repo.guardar_estado(estado)
-    persistir_orden_sqlite_acompaniantes_desde_estado(estado)
+    repo.guardar_estado(estado, linea_id)
+    persistir_orden_sqlite_acompaniantes_desde_estado(estado, linea_id)
 
     orden_after = estado.get("acompaniantes_orden", [])
-    conductores_after = repo.cargar_conductores()
+    conductores_after = repo.cargar_conductores(linea_id)
     mensaje_turno = calcular_mensaje_turno_automatico(
         conductores_after, orden_after, []
     )
     if mensaje_turno:
         estado["mensaje_turno"] = mensaje_turno
-        repo.guardar_estado(estado)
+        repo.guardar_estado(estado, linea_id)
 
     return CerrarDiaResponse(
         fecha=estado["fecha"],
@@ -396,10 +445,11 @@ def cerrar_dia(admin_user: TokenData = Depends(get_admin_user)):
 def guardar_segundo_acompaniante(
     body: SegundoAcompanianteBody,
     admin_user: TokenData = Depends(get_admin_user),
+    linea_id: int = Depends(get_linea_id),
 ):
     _ = admin_user
-    estado = repo.cargar_estado()
-    fusionar_estado_acompaniantes(estado)
+    estado = repo.cargar_estado(linea_id)
+    fusionar_estado_acompaniantes(estado, linea_id)
     orden = estado.get("acompaniantes_orden", [])
     raw_asig = estado.get("asignaciones_hoy")
     resultados = asignaciones_desde_json(raw_asig if isinstance(raw_asig, list) else None)
@@ -409,7 +459,7 @@ def guardar_segundo_acompaniante(
         estado["segundo_acompanante_hoy"] = elegido
     else:
         estado.pop("segundo_acompanante_hoy", None)
-    repo.guardar_estado(estado)
+    repo.guardar_estado(estado, linea_id)
     return {"segundo_acompanante": elegido}
 
 
@@ -417,24 +467,28 @@ def guardar_segundo_acompaniante(
 def guardar_mensaje_turno(
     body: MensajeTurnoBody,
     admin_user: TokenData = Depends(get_admin_user),
+    linea_id: int = Depends(get_linea_id),
 ):
     _ = admin_user
-    estado = repo.cargar_estado()
-    fusionar_estado_acompaniantes(estado)
+    estado = repo.cargar_estado(linea_id)
+    fusionar_estado_acompaniantes(estado, linea_id)
     texto = str(body.mensaje or "").strip()
     if not texto:
         raise HTTPException(status_code=400, detail="El mensaje no puede estar vacío.")
     estado["mensaje_turno"] = texto
-    repo.guardar_estado(estado)
+    repo.guardar_estado(estado, linea_id)
     return {"mensaje_turno": texto}
 
 
 @app.post("/estado/mensaje-turno/regenerar")
-def regenerar_mensaje_turno(admin_user: TokenData = Depends(get_admin_user)):
+def regenerar_mensaje_turno(
+    admin_user: TokenData = Depends(get_admin_user),
+    linea_id: int = Depends(get_linea_id),
+):
     _ = admin_user
-    estado = repo.cargar_estado()
-    fusionar_estado_acompaniantes(estado)
-    conductores = repo.cargar_conductores()
+    estado = repo.cargar_estado(linea_id)
+    fusionar_estado_acompaniantes(estado, linea_id)
+    conductores = repo.cargar_conductores(linea_id)
     orden = estado.get("acompaniantes_orden", [])
     raw_asig = estado.get("asignaciones_hoy")
     resultados = asignaciones_desde_json(raw_asig if isinstance(raw_asig, list) else None)
@@ -447,7 +501,7 @@ def regenerar_mensaje_turno(admin_user: TokenData = Depends(get_admin_user)):
         estado["mensaje_turno"] = mensaje
     else:
         estado.pop("mensaje_turno", None)
-    repo.guardar_estado(estado)
+    repo.guardar_estado(estado, linea_id)
     return {"mensaje_turno": mensaje}
 
 
@@ -456,6 +510,7 @@ def listar_registro_dias(
     desde: str,
     hasta: str,
     current_user: TokenData = Depends(get_current_user),
+    linea_id: int = Depends(get_linea_id),
 ):
     _ = current_user
     d0 = _normalizar_fecha_iso(desde.strip())
@@ -463,8 +518,8 @@ def listar_registro_dias(
     if d0 > d1:
         raise HTTPException(status_code=400, detail="'desde' no puede ser posterior a 'hasta'.")
     limite_retencion = (date.today() - timedelta(days=122)).isoformat()
-    repo.purgar_registro_antes_de(limite_retencion)
-    rows = repo.list_registro_dias_entre(d0, d1)
+    repo.purgar_registro_antes_de(limite_retencion, linea_id)
+    rows = repo.list_registro_dias_entre(d0, d1, linea_id)
     return [
         RegistroDiaOut(fecha=f, conductor=c, acompanante=a) for f, c, a in rows
     ]
@@ -475,6 +530,7 @@ def actualizar_registro_dia_pasado(
     fecha: str,
     body: PutRegistroDiaBody,
     admin_user: TokenData = Depends(get_admin_user),
+    linea_id: int = Depends(get_linea_id),
 ):
     _ = admin_user
     f = _normalizar_fecha_iso(fecha.strip())
@@ -486,7 +542,7 @@ def actualizar_registro_dia_pasado(
     conductor = str(body.conductor or "").strip()
     if not conductor:
         raise HTTPException(status_code=400, detail="Conductor requerido.")
-    conductores_ok = set(repo.cargar_conductores())
+    conductores_ok = set(repo.cargar_conductores(linea_id))
     if conductor not in conductores_ok:
         raise HTTPException(
             status_code=400,
@@ -495,13 +551,13 @@ def actualizar_registro_dia_pasado(
     acomp: str | None = None
     if body.acompanante is not None and str(body.acompanante).strip():
         acomp = str(body.acompanante).strip()
-        acomps_ok = set(repo.cargar_acompaniantes())
+        acomps_ok = set(repo.cargar_acompaniantes(linea_id))
         if acomp not in acomps_ok:
             raise HTTPException(
                 status_code=400,
                 detail="El acompañante debe existir en la lista actual.",
             )
-    repo.upsert_registro_dia(f, conductor, acomp)
+    repo.upsert_registro_dia(f, conductor, acomp, linea_id)
     return RegistroDiaOut(fecha=f, conductor=conductor, acompanante=acomp)
 
 

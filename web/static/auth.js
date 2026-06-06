@@ -102,6 +102,9 @@ class AuthManager {
       if (typeof window.__trenRecargarEstado === 'function') {
         void window.__trenRecargarEstado();
       }
+      if (typeof window.__trenRefreshLineas === 'function') {
+        void window.__trenRefreshLineas(false);
+      }
     } catch (error) {
       errorDiv.textContent = error.message;
       errorDiv.style.display = 'block';
@@ -129,10 +132,13 @@ class AuthManager {
     const mensajeHint = document.getElementById('mensaje-turno-hint');
     const btnGuardarMsg = document.getElementById('btn-guardar-mensaje');
     const btnRegenMsg = document.getElementById('btn-regenerar-mensaje');
+    const selSegundoAcomp = document.getElementById('sel-segundo-acomp');
     if (this.userType === 'admin') {
       genBtn.style.display = 'block';
       cerrarBtn.style.display = 'block';
       gestionBtn.style.display = 'block';
+      const lineasBtn = document.getElementById('btn-gestion-lineas');
+      if (lineasBtn) lineasBtn.style.display = 'inline-block';
       if (regPasadoBtn) regPasadoBtn.style.display = 'block';
       if (cardDisp) cardDisp.style.display = '';
       if (gridHoy) gridHoy.classList.remove('grid-2--solo-asignaciones');
@@ -140,10 +146,13 @@ class AuthManager {
       if (mensajeHint) mensajeHint.style.display = '';
       if (btnGuardarMsg) btnGuardarMsg.style.display = '';
       if (btnRegenMsg) btnRegenMsg.style.display = '';
+      if (selSegundoAcomp) selSegundoAcomp.disabled = false;
     } else {
       genBtn.style.display = 'none';
       cerrarBtn.style.display = 'none';
       gestionBtn.style.display = 'none';
+      const lineasBtn = document.getElementById('btn-gestion-lineas');
+      if (lineasBtn) lineasBtn.style.display = 'none';
       if (regPasadoBtn) regPasadoBtn.style.display = 'none';
       if (cardDisp) cardDisp.style.display = 'none';
       if (gridHoy) gridHoy.classList.add('grid-2--solo-asignaciones');
@@ -151,6 +160,7 @@ class AuthManager {
       if (mensajeHint) mensajeHint.style.display = 'none';
       if (btnGuardarMsg) btnGuardarMsg.style.display = 'none';
       if (btnRegenMsg) btnRegenMsg.style.display = 'none';
+      if (selSegundoAcomp) selSegundoAcomp.disabled = true;
     }
   }
 

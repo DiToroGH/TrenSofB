@@ -35,17 +35,7 @@
   }
 
   function apiFetch(url, options) {
-    const fetchOptions = Object.assign({}, options || {});
-    
-    // Agregar header de autorización si existe token
-    if (auth && auth.token) {
-      if (!fetchOptions.headers) {
-        fetchOptions.headers = {};
-      }
-      fetchOptions.headers['Authorization'] = `Bearer ${auth.token}`;
-    }
-    
-    return fetch(url, fetchOptions);
+    return window.trenLinea.apiFetch(url, options);
   }
 
   async function parseError(r) {

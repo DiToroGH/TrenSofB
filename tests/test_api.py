@@ -236,6 +236,56 @@ class TestApiAislada(unittest.TestCase):
         self.assertEqual(body["conductor"], cond)
         self.assertIsNone(body["acompanante"])
 
+    def test_estado_hoy_incluye_linea(self):
+        h = _admin_auth_headers(self.client)
+        r = self.client.get("/estado/hoy", headers=h)
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["linea_id"], 1)
+        self.assertEqual(body["linea_nombre"], "SofB")
+
+    def test_lineas_crud_y_aislamiento(self):
+        h = _admin_auth_headers(self.client)
+        r = self.client.get("/lineas", headers=h)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(any(x["nombre"] == "SofB" for x in r.json()))
+
+        r2 = self.client.post(
+            "/lineas",
+            json={"nombre": "Linea Test B"},
+            headers=h,
+        )
+        self.assertEqual(r2.status_code, 201, r2.text)
+        linea2 = r2.json()["id"]
+
+        r3 = self.client.post(
+            f"/personas/conductores?linea_id={linea2}",
+            json={"nombre": "Cond Linea2"},
+            headers=h,
+        )
+        self.assertEqual(r3.status_code, 201)
+
+        r4 = self.client.get("/personas/conductores?linea_id=1", headers=h)
+        nombres_l1 = [x["nombre"] for x in r4.json()]
+        self.assertNotIn("Cond Linea2", nombres_l1)
+
+        r5 = self.client.get(f"/personas/conductores?linea_id={linea2}", headers=h)
+        self.assertEqual(len(r5.json()), 1)
+
+        r6 = self.client.delete(f"/lineas/{linea2}", headers=h)
+        self.assertEqual(r6.status_code, 400)
+
+        r8 = self.client.delete(
+            f"/personas/conductores/{r3.json()['id']}?linea_id={linea2}",
+            headers=h,
+        )
+        self.assertEqual(r8.status_code, 204)
+        r9 = self.client.delete(f"/lineas/{linea2}", headers=h)
+        self.assertEqual(r9.status_code, 204)
+
+        r10 = self.client.delete("/lineas/1", headers=h)
+        self.assertEqual(r10.status_code, 400)
+
 
 if __name__ == "__main__":
     unittest.main()

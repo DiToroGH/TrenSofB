@@ -39,12 +39,7 @@
   }
 
   function apiFetch(url, options) {
-    const fetchOptions = Object.assign({ cache: "no-store" }, options || {});
-    if (typeof auth !== "undefined" && auth && auth.token) {
-      if (!fetchOptions.headers) fetchOptions.headers = {};
-      fetchOptions.headers["Authorization"] = "Bearer " + auth.token;
-    }
-    return fetch(url, fetchOptions);
+    return window.trenLinea.apiFetch(url, options);
   }
 
   const dlg = document.getElementById("dlg-registro-pasado");

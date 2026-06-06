@@ -195,6 +195,8 @@ docker run -d --name sofb-tren --restart unless-stopped \
 
 Los datos en `/opt/tren-data` **no** se pierden al reconstruir la imagen.
 
+**Importante (UI web):** si ves textos como `secondCompanionLabel` o un desplegable vacío, el navegador o la imagen Docker suelen tener **archivos viejos**. Hacé siempre `docker build` completo (no solo `git pull` sin reconstruir) y en el navegador **recarga forzada** (`Ctrl+F5`). La app sirve `index.html` y `/static/*.js` con cabeceras `no-cache` para reducir este problema.
+
 ---
 
 ## 11. (Opcional) HTTPS con Caddy en el host
@@ -207,11 +209,51 @@ No es obligatorio para pruebas. Idea: Caddy escucha en **443**, hace TLS automá
 
 ---
 
-## 12. Límites y buenas prácticas Always Free
+## 12. Backup de datos (obligatorio antes de migraciones)
+
+Antes de desplegar una versión que migre el esquema SQLite o el JSON de estado, **hacé backup** de `/opt/tren-data`.
+
+### Script incluido en el repo
+
+Desde la VM (con el repo en `/opt/tren/app`):
+
+```bash
+chmod +x /opt/tren/app/scripts/backup-data.sh
+TREN_DATA_DIR=/opt/tren-data BACKUP_DIR=/opt/tren-backups /opt/tren/app/scripts/backup-data.sh
+```
+
+### Manual (equivalente)
+
+```bash
+sudo mkdir -p /opt/tren-backups
+sudo tar -czf "/opt/tren-backups/tren-data-$(date +%Y%m%d-%H%M%S).tar.gz" -C /opt/tren-data .
+ls -lh /opt/tren-backups/
+```
+
+### Restaurar si algo falla
+
+```bash
+docker rm -f sofb-tren
+sudo rm -rf /opt/tren-data/*
+sudo tar -xzf /opt/tren-backups/tren-data-YYYYMMDD-HHMMSS.tar.gz -C /opt/tren-data
+# Volver a levantar el contenedor (paso 8 o deploy.sh)
+```
+
+### Deploy con backup automático
+
+`deploy.sh` crea backup si existe `datos_tren.db` y no hay backup de las últimas 24 h. Forzar backup:
+
+```bash
+./deploy.sh --backup
+```
+
+---
+
+## 13. Límites y buenas prácticas Always Free
 
 - Revisá en la documentación de Oracle los **límites actuales** de OCPU / RAM / Ampere por tenancy.
 - Hacé **snapshots** o backup periódico de `/opt/tren-data` (los dos archivos o un `.tar.gz`).
-- La app **no tiene autenticación** todavía: cualquiera con la URL puede operar. Restringí IP en Security List o poné delante un túnel/VPN hasta que agregues login o API key.
+- Restringí IP en Security List o poné delante un túnel/VPN si el acceso debe ser privado.
 
 ---
 
@@ -223,3 +265,16 @@ No es obligatorio para pruebas. Idea: Caddy escucha en **443**, hace TLS automá
 | Volumen host | `/opt/tren-data` → `/data` |
 
 Más detalle genérico: `DEPLOY.md`.
+
+---
+
+## Checklist deploy multi-línea (OCI)
+
+| Paso | Acción |
+|------|--------|
+| 1 | Backup: `scripts/backup-data.sh` o `./deploy.sh --backup` |
+| 2 | `git pull` + `docker build` + `deploy.sh` |
+| 3 | `docker logs sofb-tren 2>&1 \| tail -30` — migración v2 OK |
+| 4 | Web: login, selector de línea visible, SofB carga igual que antes |
+| 5 | Admin: crear segunda línea, cargar personas, verificar aislamiento |
+| 6 | Restauración (solo si falla): ver §12 arriba |

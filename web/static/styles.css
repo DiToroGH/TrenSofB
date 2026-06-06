@@ -104,6 +104,56 @@ body {
   justify-content: flex-start;
 }
 
+.linea-toolbar-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-right: 0.35rem;
+  padding-right: 0.65rem;
+  border-right: 1px solid var(--border);
+}
+
+.linea-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.linea-select {
+  min-width: 8rem;
+  max-width: 14rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: inherit;
+}
+
+.linea-admin-list .linea-admin-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.linea-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.linea-nueva-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.linea-nueva-row .nombre-input {
+  flex: 1 1 12rem;
+}
+
 .layout {
   max-width: 960px;
   margin: 0 auto;
@@ -563,14 +613,19 @@ body.tren-modo-admin .segundo-acomp-wrap {
 }
 
 .segundo-acomp-select {
+  display: block;
   width: 100%;
-  padding: 0.5rem 0.65rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 2rem 0.5rem 0.65rem;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: #121a26;
   color: var(--text);
   font-family: inherit;
   font-size: 0.9rem;
+  cursor: pointer;
+  appearance: auto;
+  -webkit-appearance: menulist;
 }
 
 .segundo-acomp-hint {

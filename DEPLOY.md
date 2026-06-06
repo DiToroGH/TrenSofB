@@ -59,4 +59,13 @@ Desde Cursor **no** se puede desplegar automáticamente a tu cuenta sin credenci
 2. En el panel del host (Render, Fly, VPS) redeploy cuando cambies `main`.
 3. Opcional: **GitHub Actions** que construya la imagen y la publique en cada tag.
 
+## Multi-línea (transporte)
+
+La app soporta **varias líneas** en un solo volumen (`TREN_DATA_DIR`): una SQLite con `linea_id` y estado JSON v2. No hace falta segunda VM ni segundo contenedor.
+
+- Línea por defecto tras migración: **SofB** (id=1).
+- Variables de entorno: **sin cambios** (`TREN_DATA_DIR`, opcionalmente `TREN_DB_PATH` / `TREN_STATE_PATH`).
+- **Antes del primer deploy** con migración: backup de datos (ver `DEPLOY-OCI.md` §12 y `scripts/backup-data.sh`).
+- Tras deploy: `docker logs sofb-tren` debe mostrar migración OK; la web incluye selector de línea.
+
 Si querés que el agente **edite código pensando en una URL fija** (CORS, `fetch` absoluto, etc.), pasame la URL pública y el stack (Docker en VPS, Render, etc.) y lo adaptamos en el repo.

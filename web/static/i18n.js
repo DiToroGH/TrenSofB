@@ -35,6 +35,21 @@
       btnRefresh: "Refrescar",
       btnGenerateToday: "Generar asignación de hoy",
       btnCloseDay: "Cerrar día (preparar mañana)",
+      lineaLabel: "Línea",
+      btnManageLines: "Gestionar líneas",
+      dlgLineasTitle: "Líneas de transporte",
+      dlgLineasHint:
+        "Creá líneas separadas para distintos grupos de conductores y acompañantes.",
+      lineaNewLabel: "Nueva línea",
+      lineaNewPlaceholder: "Nombre de la línea",
+      lineaCreateBtn: "Crear línea",
+      lineaSofbProtected: "Línea base (no eliminable)",
+      lineaRenamePrompt: "Nuevo nombre de la línea:",
+      lineaDeleteConfirm: "¿Eliminar la línea «{nombre}»? Solo si está vacía.",
+      lineaRenamed: "Línea renombrada.",
+      lineaDeleted: "Línea eliminada.",
+      lineaCreated: "Línea creada.",
+      lineaNameRequired: "Indicá un nombre para la línea.",
       almanaqueAria: "Almanaque de 4 semanas",
       weekTitle: "Almanaque — 4 semanas",
       weekHint:
@@ -184,6 +199,21 @@
       btnRefresh: "Refresh",
       btnGenerateToday: "Generate today’s assignment",
       btnCloseDay: "Close day (prepare tomorrow)",
+      lineaLabel: "Line",
+      btnManageLines: "Manage lines",
+      dlgLineasTitle: "Transport lines",
+      dlgLineasHint:
+        "Create separate lines for different driver and companion groups.",
+      lineaNewLabel: "New line",
+      lineaNewPlaceholder: "Line name",
+      lineaCreateBtn: "Create line",
+      lineaSofbProtected: "Base line (cannot delete)",
+      lineaRenamePrompt: "New line name:",
+      lineaDeleteConfirm: "Delete line «{nombre}»? Only if empty.",
+      lineaRenamed: "Line renamed.",
+      lineaDeleted: "Line deleted.",
+      lineaCreated: "Line created.",
+      lineaNameRequired: "Enter a name for the line.",
       almanaqueAria: "4-week schedule",
       weekTitle: "Schedule — 4 weeks",
       weekHint:
@@ -331,6 +361,21 @@
       btnRefresh: "Atualizar",
       btnGenerateToday: "Gerar atribuição de hoje",
       btnCloseDay: "Fechar dia (preparar amanhã)",
+      lineaLabel: "Linha",
+      btnManageLines: "Gerir linhas",
+      dlgLineasTitle: "Linhas de transporte",
+      dlgLineasHint:
+        "Crie linhas separadas para grupos distintos de condutores e acompanhantes.",
+      lineaNewLabel: "Nova linha",
+      lineaNewPlaceholder: "Nome da linha",
+      lineaCreateBtn: "Criar linha",
+      lineaSofbProtected: "Linha base (não eliminável)",
+      lineaRenamePrompt: "Novo nome da linha:",
+      lineaDeleteConfirm: "Eliminar a linha «{nombre}»? Só se estiver vazia.",
+      lineaRenamed: "Linha renomeada.",
+      lineaDeleted: "Linha eliminada.",
+      lineaCreated: "Linha criada.",
+      lineaNameRequired: "Indique um nome para a linha.",
       almanaqueAria: "Calendário de 4 semanas",
       weekTitle: "Calendário — 4 semanas",
       weekHint:
@@ -476,6 +521,15 @@
     return out;
   }
 
+  function hasKey(key) {
+    const lang = getLang();
+    const table = STRINGS[lang] || {};
+    return (
+      Object.prototype.hasOwnProperty.call(table, key) ||
+      Object.prototype.hasOwnProperty.call(STRINGS.es, key)
+    );
+  }
+
   function t(key, vars) {
     const lang = getLang();
     const table = STRINGS[lang] || STRINGS.es;
@@ -503,26 +557,26 @@
   }
 
   function applyStatic() {
-    document.title = t("appTitle");
+    document.title = hasKey("appTitle") ? t("appTitle") : document.title;
     document.querySelectorAll("[data-i18n]").forEach(function (el) {
       const key = el.getAttribute("data-i18n");
-      if (key) el.textContent = t(key);
+      if (key && hasKey(key)) el.textContent = t(key);
     });
     document.querySelectorAll("[data-i18n-html]").forEach(function (el) {
       const key = el.getAttribute("data-i18n-html");
-      if (key) el.innerHTML = t(key);
+      if (key && hasKey(key)) el.innerHTML = t(key);
     });
     document.querySelectorAll("[data-i18n-placeholder]").forEach(function (el) {
       const key = el.getAttribute("data-i18n-placeholder");
-      if (key) el.setAttribute("placeholder", t(key));
+      if (key && hasKey(key)) el.setAttribute("placeholder", t(key));
     });
     document.querySelectorAll("[data-i18n-aria]").forEach(function (el) {
       const key = el.getAttribute("data-i18n-aria");
-      if (key) el.setAttribute("aria-label", t(key));
+      if (key && hasKey(key)) el.setAttribute("aria-label", t(key));
     });
     document.querySelectorAll("[data-i18n-title]").forEach(function (el) {
       const key = el.getAttribute("data-i18n-title");
-      if (key) el.setAttribute("title", t(key));
+      if (key && hasKey(key)) el.setAttribute("title", t(key));
     });
     syncLangOptionLabels();
   }
@@ -556,6 +610,7 @@
 
   window.trenI18n = {
     t: t,
+    hasKey: hasKey,
     getLang: getLang,
     setLang: setLang,
     applyStatic: applyStatic,

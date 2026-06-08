@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Backup de datos persistentes SofB Train (SQLite + estado JSON).
 # Uso: ./scripts/backup-data.sh
-#      TREN_DATA_DIR=/opt/tren-data BACKUP_DIR=/opt/tren-backups ./scripts/backup-data.sh
+#      TREN_DATA_DIR=/opt/tren-data ./scripts/backup-data.sh
+# Backups por defecto en ${TREN_DATA_DIR}/backups (mismo volumen, sin sudo extra).
 
 set -euo pipefail
 
 DATA_DIR="${TREN_DATA_DIR:-/opt/tren-data}"
-BACKUP_DIR="${BACKUP_DIR:-/opt/tren-backups}"
+BACKUP_DIR="${BACKUP_DIR:-${DATA_DIR}/backups}"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 ARCHIVE_NAME="tren-data-${TIMESTAMP}.tar.gz"
 
@@ -18,7 +19,7 @@ fi
 mkdir -p "$BACKUP_DIR"
 
 # Empaquetar el contenido del directorio de datos (no el path padre completo).
-tar -czf "${BACKUP_DIR}/${ARCHIVE_NAME}" -C "$DATA_DIR" .
+tar -czf "${BACKUP_DIR}/${ARCHIVE_NAME}" -C "$DATA_DIR" --exclude='backups' .
 
 echo "Backup creado: ${BACKUP_DIR}/${ARCHIVE_NAME}"
 ls -lh "${BACKUP_DIR}/${ARCHIVE_NAME}"

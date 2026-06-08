@@ -12,7 +12,7 @@ APP_DIR="/opt/tren/app"
 CONTAINER_NAME="sofb-tren"
 IMAGE_NAME="sofb-tren:latest"
 DATA_DIR="/opt/tren-data"
-BACKUP_DIR="/opt/tren-backups"
+BACKUP_DIR="${BACKUP_DIR:-${DATA_DIR}/backups}"
 FORCE_BACKUP=false
 
 for arg in "$@"; do
@@ -49,9 +49,23 @@ run_backup() {
   else
     mkdir -p "$BACKUP_DIR"
     ARCHIVE="${BACKUP_DIR}/tren-data-$(date +%Y%m%d-%H%M%S).tar.gz"
-    tar -czf "$ARCHIVE" -C "$DATA_DIR" .
+    tar -czf "$ARCHIVE" -C "$DATA_DIR" --exclude='backups' .
     echo "Backup creado: $ARCHIVE"
   fi
+}
+
+# En la VM no editar deploy.sh a mano: siempre prevalece la versión del repo.
+restore_deploy_scripts() {
+  local files=(deploy.sh scripts/backup-data.sh)
+  if git diff --quiet "${files[@]}" 2>/dev/null; then
+    return 0
+  fi
+  echo "⚠️  Cambios locales en scripts de deploy; se descartan antes del pull."
+  git restore "${files[@]}" 2>/dev/null || git checkout -- "${files[@]}"
+}
+
+ensure_deploy_scripts_executable() {
+  chmod +x deploy.sh scripts/backup-data.sh 2>/dev/null || true
 }
 
 echo "🚀 Iniciando deploy de $CONTAINER_NAME..."
@@ -66,7 +80,14 @@ else
 fi
 
 echo "⬇️  Actualizando código con git pull..."
-git pull
+restore_deploy_scripts
+if ! git pull; then
+  echo "❌ git pull falló." >&2
+  echo "   Recuperación manual:" >&2
+  echo "   git restore deploy.sh scripts/backup-data.sh && git pull && ./deploy.sh --backup" >&2
+  exit 1
+fi
+ensure_deploy_scripts_executable
 
 echo "🔨 Construyendo imagen Docker..."
 docker build -t "$IMAGE_NAME" .

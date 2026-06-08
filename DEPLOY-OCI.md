@@ -219,23 +219,25 @@ Desde la VM (con el repo en `/opt/tren/app`):
 
 ```bash
 chmod +x /opt/tren/app/scripts/backup-data.sh
-TREN_DATA_DIR=/opt/tren-data BACKUP_DIR=/opt/tren-backups /opt/tren/app/scripts/backup-data.sh
+TREN_DATA_DIR=/opt/tren-data /opt/tren/app/scripts/backup-data.sh
 ```
+
+Los `.tar.gz` quedan en **`/opt/tren-data/backups/`** (mismo volumen que la app; no hace falta `sudo` si `/opt/tren-data` es tuyo).
 
 ### Manual (equivalente)
 
 ```bash
-sudo mkdir -p /opt/tren-backups
-sudo tar -czf "/opt/tren-backups/tren-data-$(date +%Y%m%d-%H%M%S).tar.gz" -C /opt/tren-data .
-ls -lh /opt/tren-backups/
+mkdir -p /opt/tren-data/backups
+tar -czf "/opt/tren-data/backups/tren-data-$(date +%Y%m%d-%H%M%S).tar.gz" -C /opt/tren-data --exclude='backups' .
+ls -lh /opt/tren-data/backups/
 ```
 
 ### Restaurar si algo falla
 
 ```bash
 docker rm -f sofb-tren
-sudo rm -rf /opt/tren-data/*
-sudo tar -xzf /opt/tren-backups/tren-data-YYYYMMDD-HHMMSS.tar.gz -C /opt/tren-data
+rm -rf /opt/tren-data/*
+tar -xzf /opt/tren-data/backups/tren-data-YYYYMMDD-HHMMSS.tar.gz -C /opt/tren-data
 # Volver a levantar el contenedor (paso 8 o deploy.sh)
 ```
 
@@ -244,8 +246,27 @@ sudo tar -xzf /opt/tren-backups/tren-data-YYYYMMDD-HHMMSS.tar.gz -C /opt/tren-da
 `deploy.sh` crea backup si existe `datos_tren.db` y no hay backup de las últimas 24 h. Forzar backup:
 
 ```bash
+chmod +x deploy.sh scripts/backup-data.sh   # solo la primera vez si sale "Permission denied"
 ./deploy.sh --backup
 ```
+
+Alternativa sin permiso de ejecución: `bash deploy.sh --backup`
+
+### Si `git pull` falla por cambios locales en `deploy.sh`
+
+No edites `deploy.sh` ni `scripts/backup-data.sh` en la VM (p. ej. con `sed`). La fuente de verdad es el repo.
+
+Recuperación inmediata:
+
+```bash
+cd /opt/tren/app
+git restore deploy.sh scripts/backup-data.sh
+git pull
+chmod +x deploy.sh scripts/backup-data.sh
+./deploy.sh --backup
+```
+
+Desde una versión reciente de `deploy.sh`, el script descarta esos cambios locales **automáticamente** antes del `git pull`.
 
 ---
 

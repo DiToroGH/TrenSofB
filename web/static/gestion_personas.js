@@ -21,8 +21,11 @@
   const metaCond = document.getElementById("meta-cond");
   const metaAcomp = document.getElementById("meta-acomp");
   const masivaTa = document.getElementById("masiva-acomp");
+  const fijosGrid = document.getElementById("fijos-semana-grid");
 
   if (!dlg || !btnGestion) return;
+
+  const DIAS_SEMANA = [0, 1, 2, 3, 4, 5, 6];
 
   let conductores = [];
   let acompaniantes = [];
@@ -69,6 +72,69 @@
     conductores = await r.json();
   }
 
+  function fijosDesdeEstado() {
+    const data = window.__trenLastEstado || {};
+    return data.conductores_fijos_semana || {};
+  }
+
+  function etiquetaDiaSemana(dia) {
+    return t("weekday" + String(dia));
+  }
+
+  async function guardarFijoSemana(diaSemana, conductor) {
+    const r = await apiFetch("/estado/conductores-fijos-semana", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dia_semana: diaSemana, conductor: conductor || null }),
+    });
+    if (!r.ok) throw new Error(await parseError(r));
+    const body = await r.json();
+    if (window.__trenLastEstado) {
+      window.__trenLastEstado.conductores_fijos_semana =
+        body.conductores_fijos_semana || {};
+    }
+    recargarPrincipal();
+  }
+
+  function renderFijosSemana() {
+    if (!fijosGrid) return;
+    fijosGrid.innerHTML = "";
+    const fijos = fijosDesdeEstado();
+    DIAS_SEMANA.forEach(function (dia) {
+      const row = document.createElement("div");
+      row.className = "fijos-semana-row";
+      const lbl = document.createElement("label");
+      lbl.className = "fijos-semana-dia";
+      lbl.textContent = etiquetaDiaSemana(dia);
+      const sel = document.createElement("select");
+      sel.className = "fijos-semana-select";
+      const optNone = document.createElement("option");
+      optNone.value = "";
+      optNone.textContent = t("fijosSemanaNone");
+      sel.appendChild(optNone);
+      conductores.forEach(function (c) {
+        const opt = document.createElement("option");
+        opt.value = c.nombre;
+        opt.textContent = c.nombre;
+        sel.appendChild(opt);
+      });
+      const clave = String(dia);
+      if (fijos[clave]) sel.value = fijos[clave];
+      sel.addEventListener("change", async function () {
+        setMsgG(t("updating"), "");
+        try {
+          await guardarFijoSemana(dia, sel.value || null);
+          setMsgG(t("fijosSemanaSaved"), "ok");
+        } catch (e) {
+          setMsgG(String(e.message || e), "error");
+        }
+      });
+      row.appendChild(lbl);
+      row.appendChild(sel);
+      fijosGrid.appendChild(row);
+    });
+  }
+
   async function fetchAcompaniantes() {
     const r = await apiFetch("/personas/acompaniantes");
     if (!r.ok) throw new Error(await parseError(r));
@@ -80,6 +146,7 @@
     await fetchAcompaniantes();
     renderLista("cond");
     renderLista("acomp");
+    renderFijosSemana();
   }
 
   function filtrar(items, texto) {
@@ -369,6 +436,7 @@
     if (conductores.length || acompaniantes.length) {
       renderLista("cond");
       renderLista("acomp");
+      renderFijosSemana();
     }
   });
 })();

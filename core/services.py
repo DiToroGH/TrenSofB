@@ -129,6 +129,62 @@ def resolver_mensaje_turno(
     )
 
 
+def normalizar_fijos_semana(raw: dict | None) -> dict[int, str]:
+    """Claves 0–6 (lunes–domingo, estilo `date.weekday()`)."""
+    if not raw:
+        return {}
+    out: dict[int, str] = {}
+    for key, nombre in raw.items():
+        try:
+            dia = int(key)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= dia <= 6:
+            n = str(nombre or "").strip()
+            if n:
+                out[dia] = n
+    return out
+
+
+def orden_conductores_para_dia(
+    conductores: list[str],
+    fijos_semana: dict[int, str] | dict | None,
+    weekday: int,
+) -> list[str]:
+    """
+    Orden de conductores activos en un día: el fijo del día primero;
+    el resto rota sin incluir conductores fijados en otros días.
+    """
+    fijos = (
+        fijos_semana
+        if fijos_semana and all(isinstance(k, int) for k in fijos_semana)
+        else normalizar_fijos_semana(fijos_semana)
+    )
+    fijo_hoy = fijos.get(weekday)
+    excluir = {n for d, n in fijos.items() if d != weekday}
+    rotadores = [c for c in conductores if c not in excluir]
+    if fijo_hoy and fijo_hoy in conductores:
+        rotadores = [c for c in rotadores if c != fijo_hoy]
+        return [fijo_hoy] + rotadores
+    return rotadores
+
+
+def conductor_rota_al_cerrar(
+    conductor: str | None,
+    fijos_semana: dict[int, str] | dict | None,
+    weekday: int,
+) -> bool:
+    """False si el conductor está fijado ese día de la semana (no pasa al final)."""
+    if not conductor:
+        return False
+    fijos = (
+        fijos_semana
+        if fijos_semana and all(isinstance(k, int) for k in fijos_semana)
+        else normalizar_fijos_semana(fijos_semana)
+    )
+    return fijos.get(weekday) != conductor
+
+
 def generar_asignacion(
     conductores: list[str],
     orden_acompaniantes: list[str],
@@ -179,10 +235,17 @@ def resolver_pareja_cierre(
     resultados: list[tuple[str, str]],
     conductores: list[str],
     acompaniantes_orden: list[str],
+    *,
+    weekday: int | None = None,
+    fijos_semana: dict[int, str] | dict | None = None,
 ) -> tuple[str | None, str | None]:
     if resultados:
         return resultados[0][0], resultados[0][1]
-    conductor_hoy = conductores[0] if conductores else None
+    if weekday is not None:
+        orden_cond = orden_conductores_para_dia(conductores, fijos_semana, weekday)
+        conductor_hoy = orden_cond[0] if orden_cond else None
+    else:
+        conductor_hoy = conductores[0] if conductores else None
     acomp_hoy = acompaniantes_orden[0] if acompaniantes_orden else None
     return conductor_hoy, acomp_hoy
 

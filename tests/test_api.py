@@ -236,6 +236,25 @@ class TestApiAislada(unittest.TestCase):
         self.assertEqual(body["conductor"], cond)
         self.assertIsNone(body["acompanante"])
 
+    def test_conductores_fijos_semana(self):
+        h = _admin_auth_headers(self.client)
+        r = self.client.get("/estado/hoy", headers=h)
+        cond = r.json()["conductores"][0]
+        r2 = self.client.put(
+            "/estado/conductores-fijos-semana",
+            json={"dia_semana": 6, "conductor": cond},
+            headers=h,
+        )
+        self.assertEqual(r2.status_code, 200, r2.text)
+        self.assertEqual(r2.json()["conductores_fijos_semana"]["6"], cond)
+        r3 = self.client.put(
+            "/estado/conductores-fijos-semana",
+            json={"dia_semana": 6, "conductor": None},
+            headers=h,
+        )
+        self.assertEqual(r3.status_code, 200)
+        self.assertNotIn("6", r3.json()["conductores_fijos_semana"])
+
     def test_estado_hoy_incluye_linea(self):
         h = _admin_auth_headers(self.client)
         r = self.client.get("/estado/hoy", headers=h)

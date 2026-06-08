@@ -6,10 +6,13 @@ from tkinter import ttk, messagebox
 from core.services import (
     asignaciones_a_json,
     asignaciones_desde_json,
+    conductor_rota_al_cerrar,
     estado_despues_cierre,
     fusionar_orden_acompaniantes_con_db,
     generar_asignacion as calcular_asignacion,
     generar_texto_turno,
+    normalizar_fijos_semana,
+    orden_conductores_para_dia,
     resolver_pareja_cierre,
     sanitizar_segundo_acompaniante_estado,
 )
@@ -162,6 +165,17 @@ class App(tk.Tk):
         repo.guardar_estado(self.estado)
         self.actualizar_panel_hoy()
 
+    def _weekday_operativo(self) -> int:
+        raw = str(self.estado.get("fecha") or date.today()).strip()[:10]
+        try:
+            return date.fromisoformat(raw).weekday()
+        except ValueError:
+            return date.today().weekday()
+
+    def _conductores_para_hoy(self) -> list[str]:
+        fijos = normalizar_fijos_semana(self.estado.get("conductores_fijos_semana"))
+        return orden_conductores_para_dia(self.conductores, fijos, self._weekday_operativo())
+
     def _disponibles_para_mensaje(self) -> set[str] | None:
         raw = self.estado.get("disponibles_hoy")
         if isinstance(raw, list):
@@ -184,13 +198,14 @@ class App(tk.Tk):
                 text=generar_texto_turno(conductor, acomp, orden, disponibles=disp)
             )
             return
-        if self.conductores and orden:
+        cond_hoy = self._conductores_para_hoy()
+        if cond_hoy and orden:
             self.lbl_hoy.config(
-                text=f"Propuesto: {self.conductores[0]} con {orden[0]} (genera asignación para confirmar)"
+                text=f"Propuesto: {cond_hoy[0]} con {orden[0]} (genera asignación para confirmar)"
             )
             self.lbl_msg_turno.config(
                 text=generar_texto_turno(
-                    self.conductores[0], orden[0], orden, disponibles=disp
+                    cond_hoy[0], orden[0], orden, disponibles=disp
                 )
             )
             return
@@ -217,8 +232,12 @@ class App(tk.Tk):
             messagebox.showerror("Error", "No hay acompañantes cargados.")
             return
 
+        cond_hoy = self._conductores_para_hoy()
+        if not cond_hoy:
+            messagebox.showerror("Error", "No hay conductores activos para este día.")
+            return
         asignaciones, no_disp = calcular_asignacion(
-            self.conductores, orden, disponibles
+            cond_hoy, orden, disponibles
         )
         self.estado["no_disponibles_hoy"] = no_disp
         self.resultados = asignaciones
@@ -249,14 +268,18 @@ class App(tk.Tk):
         self.txt_resultados.insert(tk.END, f"{nd if nd else 'Ninguno'}\n")
 
     def cerrar_dia(self):
+        fijos = normalizar_fijos_semana(self.estado.get("conductores_fijos_semana"))
+        weekday = self._weekday_operativo()
         conductor_hoy, acomp_hoy = resolver_pareja_cierre(
             self.resultados,
             self.conductores,
             self.estado["acompaniantes_orden"],
+            weekday=weekday,
+            fijos_semana=fijos,
         )
         segundo_hoy = str(self.estado.get("segundo_acompanante_hoy") or "").strip() or None
 
-        if conductor_hoy:
+        if conductor_hoy and conductor_rota_al_cerrar(conductor_hoy, fijos, weekday):
             repo.mover_persona_al_final("conductores", conductor_hoy)
 
         self.estado = estado_despues_cierre(

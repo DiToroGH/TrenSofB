@@ -57,6 +57,7 @@ _STATE_KEYS = (
     "disponibles_hoy",
     "mensaje_turno",
     "segundo_acompanante_hoy",
+    "conductores_fijos_semana",
 )
 
 

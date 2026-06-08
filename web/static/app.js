@@ -53,6 +53,87 @@
     return r.statusText || t("errorGeneric");
   }
 
+  function pyWeekdayFromDate(d) {
+    const js = d.getDay();
+    return js === 0 ? 6 : js - 1;
+  }
+
+  function normalizarFijosSemana(raw) {
+    const out = {};
+    if (!raw) return out;
+    Object.keys(raw).forEach(function (k) {
+      const dia = parseInt(k, 10);
+      const n = String(raw[k] || "").trim();
+      if (dia >= 0 && dia <= 6 && n) out[dia] = n;
+    });
+    return out;
+  }
+
+  function ordenConductoresParaDia(conductores, fijos, weekday) {
+    const fijoHoy = fijos[weekday];
+    const excluir = {};
+    Object.keys(fijos).forEach(function (d) {
+      const dia = parseInt(d, 10);
+      if (dia !== weekday && fijos[d]) excluir[fijos[d]] = true;
+    });
+    let rotadores = conductores.filter(function (c) {
+      return !excluir[c];
+    });
+    if (fijoHoy && conductores.indexOf(fijoHoy) >= 0) {
+      rotadores = rotadores.filter(function (c) {
+        return c !== fijoHoy;
+      });
+      return [fijoHoy].concat(rotadores);
+    }
+    return rotadores;
+  }
+
+  function conductorRotaAlCerrar(conductor, fijos, weekday) {
+    return fijos[weekday] !== conductor;
+  }
+
+  function parejasProyectadasPorDia(conductores, orden, dispSet, fijos, refOperativa, nDias) {
+    let rotadores = conductores.slice();
+    let idxAcomp = 0;
+    const out = [];
+    const base = new Date(
+      refOperativa.getFullYear(),
+      refOperativa.getMonth(),
+      refOperativa.getDate()
+    );
+    for (let off = 0; off < nDias; off++) {
+      const cellDate = new Date(
+        base.getFullYear(),
+        base.getMonth(),
+        base.getDate() + off
+      );
+      const wd = pyWeekdayFromDate(cellDate);
+      const condHoy = ordenConductoresParaDia(rotadores, fijos, wd);
+      if (!condHoy.length || !orden.length) {
+        out.push(null);
+        continue;
+      }
+      const mainCond = condHoy[0];
+      let vip = "SIN ACOMPAÑANTE";
+      let intentos = 0;
+      while (intentos < orden.length) {
+        const a = orden[idxAcomp % orden.length];
+        idxAcomp = (idxAcomp + 1) % orden.length;
+        if (dispSet.has(a)) {
+          vip = a;
+          break;
+        }
+        intentos++;
+      }
+      out.push({ conductor: mainCond, vip: vip });
+      if (conductorRotaAlCerrar(mainCond, fijos, wd)) {
+        const ri = rotadores.indexOf(mainCond);
+        if (ri >= 0) rotadores.push(rotadores.splice(ri, 1)[0]);
+      }
+    }
+    return out;
+  }
+
   function unaRonda(conductores, orden, disponiblesSet, idxIn) {
     if (!conductores.length || !orden.length) return { pairs: [], idx: idxIn };
     let idx = idxIn;
@@ -244,6 +325,9 @@
     const cond = data.conductores || [];
     const asig = data.asignaciones || [];
     const orden = data.acompaniantes_orden || [];
+    const fijos = normalizarFijosSemana(data.conductores_fijos_semana);
+    const wd = pyWeekdayFromDate(fechaOperativa(data));
+    const condHoy = ordenConductoresParaDia(cond, fijos, wd);
     if (asig.length > 0) {
       return {
         conductor: asig[0].conductor,
@@ -251,9 +335,9 @@
         etiqueta: t("statusConfirmed"),
       };
     }
-    if (cond.length && orden.length) {
+    if (condHoy.length && orden.length) {
       return {
-        conductor: cond[0],
+        conductor: condHoy[0],
         vip: orden[0],
         etiqueta: t("statusProposed"),
       };
@@ -344,8 +428,8 @@
     const cond = data.conductores || [];
     const orden = data.acompaniantes_orden || [];
     const disp = disponiblesSetDesdeEstado(data);
-    // Indexamos "pairs" por offsetDesdeHoy (0 = hoy), por eso necesitamos al menos hasta el final del rango.
-    const pairs = parejasParaNDias(cond, orden, disp, 28);
+    const fijos = normalizarFijosSemana(data.conductores_fijos_semana);
+    const pairs = parejasProyectadasPorDia(cond, orden, disp, fijos, refOperativa, 28);
 
     for (let i = 0; i < 28; i++) {
       const cellDate = new Date(
@@ -780,6 +864,9 @@
     }
     const cond = data.conductores || [];
     const asig = data.asignaciones || [];
+    const fijos = normalizarFijosSemana(data.conductores_fijos_semana);
+    const wd = pyWeekdayFromDate(fechaOperativa(data));
+    const condHoy = ordenConductoresParaDia(cond, fijos, wd);
 
     if (auth && auth.isAdmin() && wrapSegundoAcomp) {
       renderSegundoAcompanianteSelect(data);
@@ -799,9 +886,9 @@
           v: resumenVipNombre(p.acompanante),
         });
       }
-    } else if (cond.length && orden.length) {
+    } else if (condHoy.length && orden.length) {
       resumenEl.textContent = t("summaryProposed", {
-        c: cond[0],
+        c: condHoy[0],
         v: resumenVipNombre(orden[0]),
       });
     } else {

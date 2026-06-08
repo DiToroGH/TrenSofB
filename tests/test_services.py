@@ -3,10 +3,12 @@ import unittest
 from core.services import (
     asignaciones_a_json,
     asignaciones_desde_json,
+    conductor_rota_al_cerrar,
     estado_despues_cierre,
     fusionar_orden_acompaniantes_con_db,
     generar_asignacion,
     generar_texto_turno,
+    orden_conductores_para_dia,
     resolver_mensaje_turno,
     resolver_pareja_cierre,
     sanitizar_segundo_acompaniante_estado,
@@ -127,6 +129,37 @@ class TestResolverMensajeTurno(unittest.TestCase):
         msg = resolver_mensaje_turno(estado, ["C1"], ["A1", "A2"], [("C1", "A1")])
         self.assertIn("C1", msg or "")
         self.assertIn("A1", msg or "")
+
+
+class TestConductoresFijosSemana(unittest.TestCase):
+    def test_domingo_fijo_primero_y_excluido_otros_dias(self):
+        cond = ["A", "B", "C", "X"]
+        fijos = {"6": "X"}
+        domingo = orden_conductores_para_dia(cond, fijos, 6)
+        self.assertEqual(domingo[0], "X")
+        self.assertNotIn("X", domingo[1:])
+        lunes = orden_conductores_para_dia(cond, fijos, 0)
+        self.assertNotIn("X", lunes)
+        self.assertEqual(lunes[0], "A")
+
+    def test_conductor_fijo_no_rota_al_cerrar_ese_dia(self):
+        fijos = {6: "X"}
+        self.assertFalse(conductor_rota_al_cerrar("X", fijos, 6))
+        self.assertTrue(conductor_rota_al_cerrar("A", fijos, 6))
+
+    def test_generar_con_domingo_fijo(self):
+        cond = ["A", "B", "X"]
+        fijos = {6: "X"}
+        orden_dom = orden_conductores_para_dia(cond, fijos, 6)
+        asig, _ = generar_asignacion(orden_dom, ["V1", "V2"], {"V1", "V2"})
+        self.assertEqual(asig[0][0], "X")
+
+    def test_resolver_pareja_sin_asignacion_usa_fijo(self):
+        cond = ["A", "B", "X"]
+        fijos = {6: "X"}
+        c, a = resolver_pareja_cierre([], cond, ["V1"], weekday=6, fijos_semana=fijos)
+        self.assertEqual(c, "X")
+        self.assertEqual(a, "V1")
 
 
 class TestGenerarAsignacion(unittest.TestCase):

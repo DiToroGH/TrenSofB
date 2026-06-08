@@ -17,8 +17,11 @@ from core.services import (
     asignaciones_a_json,
     asignaciones_desde_json,
     calcular_mensaje_turno_automatico,
+    conductor_rota_al_cerrar,
     estado_despues_cierre,
     generar_asignacion,
+    normalizar_fijos_semana,
+    orden_conductores_para_dia,
     resolver_mensaje_turno,
     resolver_pareja_cierre,
     sanitizar_segundo_acompaniante_estado,
@@ -138,6 +141,7 @@ class EstadoHoyResponse(BaseModel):
     segundo_acompanante: str | None = None
     linea_id: int = 1
     linea_nombre: str = "SofB"
+    conductores_fijos_semana: dict[str, str | None] = {}
 
 
 class GenerarAsignacionBody(BaseModel):
@@ -176,6 +180,28 @@ class MensajeTurnoBody(BaseModel):
 
 class SegundoAcompanianteBody(BaseModel):
     nombre: str | None = None
+
+
+class ConductoresFijosBody(BaseModel):
+    """0=lunes … 6=domingo (`date.weekday()`). `conductor` null o vacío quita el fijo."""
+    dia_semana: int
+    conductor: str | None = None
+
+
+def _weekday_desde_fecha_iso(fecha: str) -> int:
+    try:
+        return date.fromisoformat(str(fecha).strip()[:10]).weekday()
+    except ValueError:
+        return date.today().weekday()
+
+
+def _fijos_semana_desde_estado(estado: dict) -> dict[int, str]:
+    return normalizar_fijos_semana(estado.get("conductores_fijos_semana"))
+
+
+def _conductores_fijos_api(estado: dict) -> dict[str, str | None]:
+    fijos = _fijos_semana_desde_estado(estado)
+    return {str(d): fijos[d] for d in sorted(fijos)}
 
 
 def _normalizar_fecha_iso(s: str) -> str:
@@ -288,6 +314,7 @@ def estado_hoy(
         segundo_acompanante=_segundo_acompanante_desde_estado(estado),
         linea_id=linea_id,
         linea_nombre=linea_nombre,
+        conductores_fijos_semana=_conductores_fijos_api(estado),
     )
 
 
@@ -343,7 +370,16 @@ def generar_asignacion_endpoint(
     else:
         disponibles = {str(x).strip() for x in body.disponibles if str(x).strip()}
 
-    asignaciones, no_disp = generar_asignacion(conductores, orden, disponibles)
+    fijos = _fijos_semana_desde_estado(estado)
+    weekday = _weekday_desde_fecha_iso(str(estado.get("fecha") or date.today()))
+    cond_orden = orden_conductores_para_dia(conductores, fijos, weekday)
+    if not cond_orden:
+        raise HTTPException(
+            status_code=400,
+            detail="No hay conductores activos para este día de la semana.",
+        )
+
+    asignaciones, no_disp = generar_asignacion(cond_orden, orden, disponibles)
     estado["no_disponibles_hoy"] = no_disp
     estado["asignaciones_hoy"] = asignaciones_a_json(asignaciones)
     estado["disponibles_hoy"] = [x for x in orden if x in disponibles]
@@ -351,7 +387,7 @@ def generar_asignacion_endpoint(
     sanitizar_segundo_acompaniante_estado(estado, vip_nuevo, orden)
     disp_turno = set(disponibles)
     mensaje_turno = calcular_mensaje_turno_automatico(
-        conductores, orden, asignaciones, disponibles=disp_turno
+        cond_orden, orden, asignaciones, disponibles=disp_turno
     )
     if mensaje_turno:
         estado["mensaje_turno"] = mensaje_turno
@@ -381,14 +417,21 @@ def cerrar_dia(
     raw_asig = estado.get("asignaciones_hoy")
     resultados = asignaciones_desde_json(raw_asig if isinstance(raw_asig, list) else None)
 
+    fijos = _fijos_semana_desde_estado(estado)
     fecha_registro_raw = estado.get("fecha") or str(date.today())
     try:
         fecha_registro = date.fromisoformat(str(fecha_registro_raw).strip()[:10]).isoformat()
+        weekday_cierre = date.fromisoformat(fecha_registro).weekday()
     except ValueError:
         fecha_registro = str(date.today())
+        weekday_cierre = date.today().weekday()
 
     conductor_hoy, acomp_hoy = resolver_pareja_cierre(
-        resultados, conductores, orden
+        resultados,
+        conductores,
+        orden,
+        weekday=weekday_cierre,
+        fijos_semana=fijos,
     )
 
     if conductor_hoy:
@@ -399,7 +442,7 @@ def cerrar_dia(
             fecha_registro, str(conductor_hoy).strip(), acomp_guardar, linea_id
         )
 
-    if conductor_hoy:
+    if conductor_hoy and conductor_rota_al_cerrar(conductor_hoy, fijos, weekday_cierre):
         repo.mover_persona_al_final("conductores", conductor_hoy, linea_id)
 
     fecha_estado_raw = str(estado.get("fecha") or str(date.today())).strip()[:10]
@@ -439,6 +482,37 @@ def cerrar_dia(
         mensaje="Día cerrado. Orden de mañana actualizado.",
         mensaje_turno=mensaje_turno,
     )
+
+
+@app.put("/estado/conductores-fijos-semana")
+def guardar_conductor_fijo_semana(
+    body: ConductoresFijosBody,
+    admin_user: TokenData = Depends(get_admin_user),
+    linea_id: int = Depends(get_linea_id),
+):
+    _ = admin_user
+    if body.dia_semana < 0 or body.dia_semana > 6:
+        raise HTTPException(status_code=400, detail="dia_semana debe ser 0–6 (lunes–domingo).")
+    estado = repo.cargar_estado(linea_id)
+    conductores = set(repo.cargar_conductores(linea_id))
+    fijos = dict(estado.get("conductores_fijos_semana") or {})
+    clave = str(body.dia_semana)
+    nombre = str(body.conductor or "").strip()
+    if nombre:
+        if nombre not in conductores:
+            raise HTTPException(
+                status_code=400,
+                detail="El conductor debe existir en la lista actual.",
+            )
+        fijos[clave] = nombre
+    else:
+        fijos.pop(clave, None)
+    if fijos:
+        estado["conductores_fijos_semana"] = fijos
+    else:
+        estado.pop("conductores_fijos_semana", None)
+    repo.guardar_estado(estado, linea_id)
+    return {"conductores_fijos_semana": _conductores_fijos_api(estado)}
 
 
 @app.put("/estado/segundo-acompanante")

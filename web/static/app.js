@@ -803,6 +803,15 @@
         document.createTextNode(t("registroLabelVip") + " " + vipTxt)
       );
 
+      if (row.segundo_acompanante) {
+        appendRegistroLogSep(line);
+        line.appendChild(
+          document.createTextNode(
+            t("registroLabelSegundo") + " " + String(row.segundo_acompanante)
+          )
+        );
+      }
+
       registrosLogEl.appendChild(line);
     });
   }

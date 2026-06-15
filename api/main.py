@@ -167,6 +167,7 @@ class RegistroDiaOut(BaseModel):
     fecha: str
     conductor: str
     acompanante: str | None = None
+    segundo_acompanante: str | None = None
 
 
 class PutRegistroDiaBody(BaseModel):
@@ -210,6 +211,12 @@ def _normalizar_fecha_iso(s: str) -> str:
     except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail="Fecha inválida (usar YYYY-MM-DD).") from exc
     return s
+
+
+def _personas_linea(linea_id: int) -> set[str]:
+    return set(repo.cargar_conductores(linea_id)) | set(
+        repo.cargar_acompaniantes(linea_id)
+    )
 
 
 @app.get("/health")
@@ -434,12 +441,18 @@ def cerrar_dia(
         fijos_semana=fijos,
     )
 
+    segundo_hoy = _segundo_acompanante_desde_estado(estado)
+
     if conductor_hoy:
         acomp_guardar: str | None = None
         if acomp_hoy and str(acomp_hoy).strip() and str(acomp_hoy) != "SIN ACOMPAÑANTE":
             acomp_guardar = str(acomp_hoy).strip()
         repo.upsert_registro_dia(
-            fecha_registro, str(conductor_hoy).strip(), acomp_guardar, linea_id
+            fecha_registro,
+            str(conductor_hoy).strip(),
+            acomp_guardar,
+            linea_id,
+            segundo_acompanante=segundo_hoy,
         )
 
     if conductor_hoy and conductor_rota_al_cerrar(conductor_hoy, fijos, weekday_cierre):
@@ -451,8 +464,6 @@ def cerrar_dia(
     except ValueError:
         fecha_estado = date.today()
     fecha_maniana = (fecha_estado + timedelta(days=1)).isoformat()
-
-    segundo_hoy = _segundo_acompanante_desde_estado(estado)
 
     estado = estado_despues_cierre(
         estado,
@@ -595,7 +606,8 @@ def listar_registro_dias(
     repo.purgar_registro_antes_de(limite_retencion, linea_id)
     rows = repo.list_registro_dias_entre(d0, d1, linea_id)
     return [
-        RegistroDiaOut(fecha=f, conductor=c, acompanante=a) for f, c, a in rows
+        RegistroDiaOut(fecha=f, conductor=c, acompanante=a, segundo_acompanante=s)
+        for f, c, a, s in rows
     ]
 
 
@@ -616,11 +628,11 @@ def actualizar_registro_dia_pasado(
     conductor = str(body.conductor or "").strip()
     if not conductor:
         raise HTTPException(status_code=400, detail="Conductor requerido.")
-    conductores_ok = set(repo.cargar_conductores(linea_id))
-    if conductor not in conductores_ok:
+    personas_ok = _personas_linea(linea_id)
+    if conductor not in personas_ok:
         raise HTTPException(
             status_code=400,
-            detail="El conductor debe existir en la lista actual.",
+            detail="La persona debe existir en la lista actual (conductores o acompañantes).",
         )
     acomp: str | None = None
     if body.acompanante is not None and str(body.acompanante).strip():

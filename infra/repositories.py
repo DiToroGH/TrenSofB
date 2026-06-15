@@ -276,19 +276,23 @@ def upsert_registro_dia(
     conductor: str,
     acompanante: str | None,
     linea_id: int = LINEA_SOFB_ID,
+    segundo_acompanante: str | None = None,
 ) -> None:
     conn = sqlite3.connect(DB_FILE)
     try:
         cur = conn.cursor()
         cur.execute(
             """
-            INSERT INTO registro_dia (linea_id, fecha, conductor, acompanante)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO registro_dia (
+                linea_id, fecha, conductor, acompanante, segundo_acompanante
+            )
+            VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(linea_id, fecha) DO UPDATE SET
                 conductor = excluded.conductor,
-                acompanante = excluded.acompanante
+                acompanante = excluded.acompanante,
+                segundo_acompanante = excluded.segundo_acompanante
             """,
-            (linea_id, fecha, conductor, acompanante),
+            (linea_id, fecha, conductor, acompanante, segundo_acompanante),
         )
         conn.commit()
     finally:
@@ -312,13 +316,13 @@ def purgar_registro_antes_de(
 
 def list_registro_dias_entre(
     desde: str, hasta: str, linea_id: int = LINEA_SOFB_ID
-) -> list[tuple[str, str, str | None]]:
+) -> list[tuple[str, str, str | None, str | None]]:
     conn = sqlite3.connect(DB_FILE)
     try:
         cur = conn.cursor()
         cur.execute(
             """
-            SELECT fecha, conductor, acompanante
+            SELECT fecha, conductor, acompanante, segundo_acompanante
             FROM registro_dia
             WHERE linea_id = ? AND fecha >= ? AND fecha <= ?
             ORDER BY fecha
@@ -326,9 +330,16 @@ def list_registro_dias_entre(
             (linea_id, desde, hasta),
         )
         rows = cur.fetchall()
-        out: list[tuple[str, str, str | None]] = []
-        for fecha, conductor, acomp in rows:
-            out.append((fecha, conductor, acomp if acomp is not None else None))
+        out: list[tuple[str, str, str | None, str | None]] = []
+        for fecha, conductor, acomp, segundo in rows:
+            out.append(
+                (
+                    fecha,
+                    conductor,
+                    acomp if acomp is not None else None,
+                    segundo if segundo is not None else None,
+                )
+            )
         return out
     finally:
         conn.close()

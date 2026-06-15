@@ -200,6 +200,7 @@ class TestApiAislada(unittest.TestCase):
         h = _admin_auth_headers(self.client)
         r = self.client.get("/estado/hoy", headers=h)
         orden = r.json()["acompaniantes_orden"]
+        fecha_estado = r.json()["fecha"]
         self.assertGreaterEqual(len(orden), 2)
         vip = orden[0]
         segundo = orden[1]
@@ -217,6 +218,18 @@ class TestApiAislada(unittest.TestCase):
             headers=h,
         )
         self.assertEqual(r4.status_code, 400)
+        self.client.post("/asignacion/generar", json={}, headers=h)
+        r_c = self.client.post("/dia/cerrar", headers=h)
+        self.assertEqual(r_c.status_code, 200)
+        r_reg = self.client.get(
+            "/registro/dias",
+            params={"desde": fecha_estado, "hasta": fecha_estado},
+            headers=h,
+        )
+        self.assertEqual(r_reg.status_code, 200)
+        rows = r_reg.json()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["segundo_acompanante"], segundo)
 
     def test_put_registro_dia_pasado_sin_vip(self):
         h = _admin_auth_headers(self.client)
@@ -235,6 +248,21 @@ class TestApiAislada(unittest.TestCase):
         self.assertEqual(body["fecha"], pasado)
         self.assertEqual(body["conductor"], cond)
         self.assertIsNone(body["acompanante"])
+
+    def test_put_registro_dia_pasado_acompaniante_como_conductor(self):
+        h = _admin_auth_headers(self.client)
+        r = self.client.get("/estado/hoy", headers=h)
+        acomp = r.json()["acompaniantes_orden"][0]
+        from datetime import date, timedelta
+
+        pasado = (date.today() - timedelta(days=5)).isoformat()
+        r2 = self.client.put(
+            f"/registro/dia/{pasado}",
+            json={"conductor": acomp, "acompanante": None},
+            headers=h,
+        )
+        self.assertEqual(r2.status_code, 200, r2.text)
+        self.assertEqual(r2.json()["conductor"], acomp)
 
     def test_conductores_fijos_semana(self):
         h = _admin_auth_headers(self.client)

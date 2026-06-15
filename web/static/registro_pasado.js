@@ -61,11 +61,25 @@
     const data = window.__trenLastEstado;
     if (!data || !selCond || !selVip) return;
 
-    const cond = data.conductores || [];
+    const conductores = data.conductores || [];
     const orden = data.acompaniantes_orden || [];
+    const vistos = {};
+    const todosConductores = [];
+
+    function agregarNombre(nombre) {
+      const n = String(nombre || "").trim();
+      if (!n) return;
+      const clave = n.toLowerCase();
+      if (vistos[clave]) return;
+      vistos[clave] = true;
+      todosConductores.push(n);
+    }
+
+    conductores.forEach(agregarNombre);
+    orden.forEach(agregarNombre);
 
     selCond.innerHTML = "";
-    cond.forEach(function (nombre) {
+    todosConductores.forEach(function (nombre) {
       const o = document.createElement("option");
       o.value = nombre;
       o.textContent = nombre;

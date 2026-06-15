@@ -9,7 +9,7 @@ from datetime import date
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 LINEA_SOFB_ID = 1
 LINEA_SOFB_NOMBRE = "SofB"
 
@@ -116,6 +116,7 @@ def _migrate_registro_dia(cur: sqlite3.Cursor) -> None:
                 fecha TEXT NOT NULL,
                 conductor TEXT NOT NULL,
                 acompanante TEXT,
+                segundo_acompanante TEXT,
                 PRIMARY KEY (linea_id, fecha),
                 FOREIGN KEY (linea_id) REFERENCES lineas(id)
             )
@@ -160,6 +161,22 @@ def _migrate_db_v1_to_v2(conn: sqlite3.Connection) -> None:
     log.info("Migración SQLite v1 → v2 completada (línea por defecto: %s).", LINEA_SOFB_NOMBRE)
 
 
+def _migrate_registro_segundo_acompanante(cur: sqlite3.Cursor) -> None:
+    if not _table_exists(cur, "registro_dia"):
+        return
+    if _table_has_column(cur, "registro_dia", "segundo_acompanante"):
+        return
+    cur.execute("ALTER TABLE registro_dia ADD COLUMN segundo_acompanante TEXT")
+
+
+def _migrate_db_v2_to_v3(conn: sqlite3.Connection) -> None:
+    cur = conn.cursor()
+    _migrate_registro_segundo_acompanante(cur)
+    _set_schema_version(cur, 3)
+    conn.commit()
+    log.info("Migración SQLite v2 → v3 completada (segundo acompañante en registro).")
+
+
 def migrate_state_file(state_path: str) -> None:
     import os
 
@@ -192,9 +209,13 @@ def run_pending(db_path: str, state_path: str) -> None:
     """Ejecuta migraciones pendientes de DB y JSON."""
     conn = sqlite3.connect(db_path)
     try:
-        version = _get_schema_version(conn.cursor())
+        cur = conn.cursor()
+        version = _get_schema_version(cur)
         if version < 2:
             _migrate_db_v1_to_v2(conn)
+            version = _get_schema_version(conn.cursor())
+        if version < 3:
+            _migrate_db_v2_to_v3(conn)
     finally:
         conn.close()
     migrate_state_file(state_path)

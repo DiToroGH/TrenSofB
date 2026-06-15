@@ -93,6 +93,7 @@
       registroLabelFecha: "Fecha:",
       registroLabelConductor: "Conductor:",
       registroLabelVip: "VIP:",
+      registroLabelSegundo: "2.º acompañante:",
       dlgTitle: "Gestión de conductores y acompañantes",
       dlgHint:
         "Altas, bajas, edición y orden (misma base que el escritorio).",
@@ -268,6 +269,7 @@
       registroLabelFecha: "Date:",
       registroLabelConductor: "Driver:",
       registroLabelVip: "VIP:",
+      registroLabelSegundo: "2nd companion:",
       dlgTitle: "Drivers and companions",
       dlgHint: "Add, edit, remove and order (same data as the desktop app).",
       tabConductors: "Drivers",
@@ -443,6 +445,7 @@
       registroLabelFecha: "Data:",
       registroLabelConductor: "Condutor:",
       registroLabelVip: "VIP:",
+      registroLabelSegundo: "2.º acompanhante:",
       dlgTitle: "Gestão de condutores e acompanhantes",
       dlgHint: "Altas, baixas, edição e ordem (mesma base que o desktop).",
       tabConductors: "Condutores",

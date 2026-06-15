@@ -96,7 +96,7 @@ class TestMigrations(unittest.TestCase):
 
         registros = repo.list_registro_dias_entre("2020-01-01", "2020-01-01", LINEA_SOFB_ID)
         self.assertEqual(len(registros), 1)
-        self.assertEqual(registros[0], ("2020-01-01", "CondA", "Acomp1"))
+        self.assertEqual(registros[0], ("2020-01-01", "CondA", "Acomp1", None))
 
         estado = repo.cargar_estado(LINEA_SOFB_ID)
         self.assertEqual(estado["fecha"], "2020-01-02")

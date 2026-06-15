@@ -15,6 +15,13 @@ def _admin_auth_headers(client: TestClient) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def _user_auth_headers(client: TestClient) -> dict[str, str]:
+    r = client.post("/login", json={"username": "user", "password": "user123"})
+    assert r.status_code == 200, r.text
+    token = r.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
 class TestApiAislada(unittest.TestCase):
     def setUp(self):
         self._prev_db = repo.DB_FILE
@@ -263,6 +270,66 @@ class TestApiAislada(unittest.TestCase):
         )
         self.assertEqual(r2.status_code, 200, r2.text)
         self.assertEqual(r2.json()["conductor"], acomp)
+
+    def test_put_registro_dia_hoy_confirmado(self):
+        from datetime import date
+
+        h = _admin_auth_headers(self.client)
+        r = self.client.get("/estado/hoy", headers=h)
+        hoy = r.json()["fecha"]
+        cond = r.json()["conductores"][0]
+
+        r_fail = self.client.put(
+            f"/registro/dia/{hoy}",
+            json={"conductor": cond, "acompanante": None},
+            headers=h,
+        )
+        self.assertEqual(r_fail.status_code, 400)
+
+        self.client.post("/asignacion/generar", json={}, headers=h)
+        self.client.post("/dia/cerrar", headers=h)
+
+        r_ok = self.client.put(
+            f"/registro/dia/{hoy}",
+            json={"conductor": cond, "acompanante": None},
+            headers=h,
+        )
+        self.assertEqual(r_ok.status_code, 200, r_ok.text)
+        self.assertEqual(r_ok.json()["fecha"], hoy)
+
+    def test_linea_visibilidad_usuario(self):
+        ha = _admin_auth_headers(self.client)
+        hu = _user_auth_headers(self.client)
+
+        r = self.client.post("/lineas", json={"nombre": "Linea Oculta"}, headers=ha)
+        self.assertEqual(r.status_code, 201, r.text)
+        linea_id = r.json()["id"]
+        self.assertFalse(r.json()["visible"])
+
+        r_user = self.client.get("/lineas", headers=hu)
+        self.assertEqual(r_user.status_code, 200)
+        ids_user = [x["id"] for x in r_user.json()]
+        self.assertNotIn(linea_id, ids_user)
+        self.assertIn(1, ids_user)
+
+        r_vis = self.client.patch(
+            f"/lineas/{linea_id}/visible",
+            json={"visible": True},
+            headers=ha,
+        )
+        self.assertEqual(r_vis.status_code, 200)
+        self.assertTrue(r_vis.json()["visible"])
+
+        r_user2 = self.client.get("/lineas", headers=hu)
+        ids_user2 = [x["id"] for x in r_user2.json()]
+        self.assertIn(linea_id, ids_user2)
+
+        r_hide = self.client.patch(
+            "/lineas/1/visible",
+            json={"visible": False},
+            headers=ha,
+        )
+        self.assertEqual(r_hide.status_code, 400)
 
     def test_conductores_fijos_semana(self):
         h = _admin_auth_headers(self.client)

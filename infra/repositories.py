@@ -345,25 +345,58 @@ def list_registro_dias_entre(
         conn.close()
 
 
-def listar_lineas() -> list[tuple[int, str]]:
+def listar_lineas() -> list[tuple[int, str, bool]]:
     conn = sqlite3.connect(DB_FILE)
     try:
         cur = conn.cursor()
-        cur.execute("SELECT id, nombre FROM lineas ORDER BY id")
-        return [(int(row[0]), row[1]) for row in cur.fetchall()]
+        cur.execute("SELECT id, nombre, visible FROM lineas ORDER BY id")
+        return [(int(row[0]), row[1], bool(row[2])) for row in cur.fetchall()]
     finally:
         conn.close()
 
 
-def obtener_linea(linea_id: int) -> tuple[int, str] | None:
+def obtener_linea(linea_id: int) -> tuple[int, str, bool] | None:
     conn = sqlite3.connect(DB_FILE)
     try:
         cur = conn.cursor()
-        cur.execute("SELECT id, nombre FROM lineas WHERE id = ?", (linea_id,))
+        cur.execute("SELECT id, nombre, visible FROM lineas WHERE id = ?", (linea_id,))
         row = cur.fetchone()
         if row is None:
             return None
-        return int(row[0]), row[1]
+        return int(row[0]), row[1], bool(row[2])
+    finally:
+        conn.close()
+
+
+def linea_es_visible(linea_id: int) -> bool:
+    info = obtener_linea(linea_id)
+    return bool(info and info[2])
+
+
+def set_linea_visible(linea_id: int, visible: bool) -> None:
+    if linea_id == LINEA_SOFB_ID and not visible:
+        raise ValueError("La línea SofB debe permanecer visible.")
+    conn = sqlite3.connect(DB_FILE)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE lineas SET visible = ? WHERE id = ?",
+            (1 if visible else 0, linea_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def registro_dia_existe(fecha: str, linea_id: int = LINEA_SOFB_ID) -> bool:
+    conn = sqlite3.connect(DB_FILE)
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT 1 FROM registro_dia WHERE linea_id = ? AND fecha = ? LIMIT 1",
+            (linea_id, fecha),
+        )
+        return cur.fetchone() is not None
     finally:
         conn.close()
 
@@ -376,7 +409,7 @@ def crear_linea(nombre: str) -> int:
     conn = sqlite3.connect(DB_FILE)
     try:
         cur = conn.cursor()
-        cur.execute("INSERT INTO lineas (nombre) VALUES (?)", (nombre.strip(),))
+        cur.execute("INSERT INTO lineas (nombre, visible) VALUES (?, 0)", (nombre.strip(),))
         conn.commit()
         return int(cur.lastrowid)
     finally:

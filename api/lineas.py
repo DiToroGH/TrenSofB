@@ -7,7 +7,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from api.deps import get_linea_id
+from api.deps import get_linea_id_for_user
 from core.auth import TokenData, get_current_user, is_admin
 from infra import repositories as repo
 from infra.migrations import LINEA_SOFB_ID
@@ -18,6 +18,7 @@ router = APIRouter(prefix="/lineas", tags=["lineas"])
 class LineaOut(BaseModel):
     id: int
     nombre: str
+    visible: bool = True
 
 
 class LineaCreateBody(BaseModel):
@@ -28,10 +29,20 @@ class LineaUpdateBody(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=100)
 
 
+class LineaVisibleBody(BaseModel):
+    visible: bool
+
+
+def _linea_out(info: tuple[int, str, bool]) -> LineaOut:
+    return LineaOut(id=info[0], nombre=info[1], visible=info[2])
+
+
 @router.get("", response_model=list[LineaOut])
 def listar_lineas_endpoint(current_user: TokenData = Depends(get_current_user)):
-    _ = current_user
-    return [LineaOut(id=lid, nombre=nombre) for lid, nombre in repo.listar_lineas()]
+    rows = repo.listar_lineas()
+    if is_admin(current_user):
+        return [_linea_out(row) for row in rows]
+    return [_linea_out(row) for row in rows if row[2]]
 
 
 @router.post("", response_model=LineaOut, status_code=201)
@@ -48,7 +59,7 @@ def crear_linea_endpoint(
     repo.inicializar_estado_linea(linea_id)
     info = repo.obtener_linea(linea_id)
     assert info is not None
-    return LineaOut(id=info[0], nombre=info[1])
+    return _linea_out(info)
 
 
 @router.patch("/{linea_id}", response_model=LineaOut)
@@ -67,7 +78,29 @@ def renombrar_linea_endpoint(
         raise HTTPException(status_code=409, detail="Ya existe una línea con ese nombre.")
     info = repo.obtener_linea(linea_id)
     assert info is not None
-    return LineaOut(id=info[0], nombre=info[1])
+    return _linea_out(info)
+
+
+@router.patch("/{linea_id}/visible", response_model=LineaOut)
+def actualizar_visibilidad_linea(
+    linea_id: int,
+    body: LineaVisibleBody,
+    current_user: TokenData = Depends(get_current_user),
+):
+    if not is_admin(current_user):
+        raise HTTPException(
+            status_code=403,
+            detail="Solo administradores pueden cambiar la visibilidad.",
+        )
+    if not repo.linea_existe(linea_id):
+        raise HTTPException(status_code=404, detail="Línea no encontrada.")
+    try:
+        repo.set_linea_visible(linea_id, body.visible)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    info = repo.obtener_linea(linea_id)
+    assert info is not None
+    return _linea_out(info)
 
 
 @router.delete("/{linea_id}", status_code=204)
@@ -88,8 +121,12 @@ def borrar_linea_endpoint(
 
 
 @router.get("/actual", response_model=LineaOut)
-def linea_actual(linea_id: int = Depends(get_linea_id)):
+def linea_actual(
+    current_user: TokenData = Depends(get_current_user),
+    linea_id: int = Depends(get_linea_id_for_user),
+):
+    _ = current_user
     info = repo.obtener_linea(linea_id)
     if info is None:
         raise HTTPException(status_code=404, detail="Línea no encontrada.")
-    return LineaOut(id=info[0], nombre=info[1])
+    return _linea_out(info)

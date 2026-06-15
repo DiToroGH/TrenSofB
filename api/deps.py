@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import Header, HTTPException, Query
+from fastapi import Depends, Header, HTTPException, Query
 
+from core.auth import TokenData, get_current_user, is_admin
 from infra import repositories as repo
 from infra.migrations import LINEA_SOFB_ID
 
@@ -18,3 +19,12 @@ def get_linea_id(
     if lid < 1 or not repo.linea_existe(lid):
         raise HTTPException(status_code=404, detail="Línea no encontrada.")
     return lid
+
+
+def get_linea_id_for_user(
+    linea_id: int = Depends(get_linea_id),
+    current_user: TokenData = Depends(get_current_user),
+) -> int:
+    if not is_admin(current_user) and not repo.linea_es_visible(linea_id):
+        raise HTTPException(status_code=403, detail="Línea no disponible.")
+    return linea_id

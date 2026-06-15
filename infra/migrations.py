@@ -9,7 +9,7 @@ from datetime import date
 
 log = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 LINEA_SOFB_ID = 1
 LINEA_SOFB_NOMBRE = "SofB"
 
@@ -177,6 +177,22 @@ def _migrate_db_v2_to_v3(conn: sqlite3.Connection) -> None:
     log.info("Migración SQLite v2 → v3 completada (segundo acompañante en registro).")
 
 
+def _migrate_lineas_visible(cur: sqlite3.Cursor) -> None:
+    if not _table_exists(cur, "lineas"):
+        return
+    if _table_has_column(cur, "lineas", "visible"):
+        return
+    cur.execute("ALTER TABLE lineas ADD COLUMN visible INTEGER NOT NULL DEFAULT 1")
+
+
+def _migrate_db_v3_to_v4(conn: sqlite3.Connection) -> None:
+    cur = conn.cursor()
+    _migrate_lineas_visible(cur)
+    _set_schema_version(cur, 4)
+    conn.commit()
+    log.info("Migración SQLite v3 → v4 completada (visibilidad de líneas).")
+
+
 def migrate_state_file(state_path: str) -> None:
     import os
 
@@ -216,6 +232,9 @@ def run_pending(db_path: str, state_path: str) -> None:
             version = _get_schema_version(conn.cursor())
         if version < 3:
             _migrate_db_v2_to_v3(conn)
+            version = _get_schema_version(conn.cursor())
+        if version < 4:
+            _migrate_db_v3_to_v4(conn)
     finally:
         conn.close()
     migrate_state_file(state_path)

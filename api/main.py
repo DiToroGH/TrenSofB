@@ -34,7 +34,7 @@ from core.auth import (
     is_admin,
     get_current_user,
 )
-from api.deps import get_linea_id
+from api.deps import get_linea_id_for_user
 from api.lineas import router as lineas_router
 from api.personas import router as personas_router
 from infra import repositories as repo
@@ -273,7 +273,7 @@ def index():
 def estado_hoy(
     response: Response,
     current_user: TokenData = Depends(get_current_user),
-    linea_id: int = Depends(get_linea_id),
+    linea_id: int = Depends(get_linea_id_for_user),
 ):
     response.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
     response.headers["Pragma"] = "no-cache"
@@ -358,7 +358,7 @@ def _validar_segundo_acompaniante(
 def generar_asignacion_endpoint(
     body: GenerarAsignacionBody,
     admin_user: TokenData = Depends(get_admin_user),
-    linea_id: int = Depends(get_linea_id),
+    linea_id: int = Depends(get_linea_id_for_user),
 ):
     _ = admin_user
     estado = repo.cargar_estado(linea_id)
@@ -414,7 +414,7 @@ def generar_asignacion_endpoint(
 @app.post("/dia/cerrar", response_model=CerrarDiaResponse)
 def cerrar_dia(
     admin_user: TokenData = Depends(get_admin_user),
-    linea_id: int = Depends(get_linea_id),
+    linea_id: int = Depends(get_linea_id_for_user),
 ):
     _ = admin_user
     estado = repo.cargar_estado(linea_id)
@@ -499,7 +499,7 @@ def cerrar_dia(
 def guardar_conductor_fijo_semana(
     body: ConductoresFijosBody,
     admin_user: TokenData = Depends(get_admin_user),
-    linea_id: int = Depends(get_linea_id),
+    linea_id: int = Depends(get_linea_id_for_user),
 ):
     _ = admin_user
     if body.dia_semana < 0 or body.dia_semana > 6:
@@ -530,7 +530,7 @@ def guardar_conductor_fijo_semana(
 def guardar_segundo_acompaniante(
     body: SegundoAcompanianteBody,
     admin_user: TokenData = Depends(get_admin_user),
-    linea_id: int = Depends(get_linea_id),
+    linea_id: int = Depends(get_linea_id_for_user),
 ):
     _ = admin_user
     estado = repo.cargar_estado(linea_id)
@@ -552,7 +552,7 @@ def guardar_segundo_acompaniante(
 def guardar_mensaje_turno(
     body: MensajeTurnoBody,
     admin_user: TokenData = Depends(get_admin_user),
-    linea_id: int = Depends(get_linea_id),
+    linea_id: int = Depends(get_linea_id_for_user),
 ):
     _ = admin_user
     estado = repo.cargar_estado(linea_id)
@@ -568,7 +568,7 @@ def guardar_mensaje_turno(
 @app.post("/estado/mensaje-turno/regenerar")
 def regenerar_mensaje_turno(
     admin_user: TokenData = Depends(get_admin_user),
-    linea_id: int = Depends(get_linea_id),
+    linea_id: int = Depends(get_linea_id_for_user),
 ):
     _ = admin_user
     estado = repo.cargar_estado(linea_id)
@@ -595,7 +595,7 @@ def listar_registro_dias(
     desde: str,
     hasta: str,
     current_user: TokenData = Depends(get_current_user),
-    linea_id: int = Depends(get_linea_id),
+    linea_id: int = Depends(get_linea_id_for_user),
 ):
     _ = current_user
     d0 = _normalizar_fecha_iso(desde.strip())
@@ -616,14 +616,21 @@ def actualizar_registro_dia_pasado(
     fecha: str,
     body: PutRegistroDiaBody,
     admin_user: TokenData = Depends(get_admin_user),
-    linea_id: int = Depends(get_linea_id),
+    linea_id: int = Depends(get_linea_id_for_user),
 ):
     _ = admin_user
     f = _normalizar_fecha_iso(fecha.strip())
-    if date.fromisoformat(f) >= date.today():
+    f_date = date.fromisoformat(f)
+    hoy = date.today()
+    if f_date > hoy:
         raise HTTPException(
             status_code=400,
-            detail="Solo se pueden editar días ya finalizados (anteriores a hoy).",
+            detail="No se pueden editar fechas futuras.",
+        )
+    if f_date == hoy and not repo.registro_dia_existe(f, linea_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Hoy solo se puede editar si el día ya está confirmado.",
         )
     conductor = str(body.conductor or "").strip()
     if not conductor:

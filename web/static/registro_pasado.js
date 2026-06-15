@@ -102,10 +102,10 @@
   function abrirDialogo() {
     if (!dlg || !inpFecha) return;
     rellenarSelects();
-    const maxD = ayerISO();
+    const maxD = hoyISO();
     inpFecha.max = maxD;
-    if (!inpFecha.value || inpFecha.value >= hoyISO()) {
-      inpFecha.value = maxD;
+    if (!inpFecha.value || inpFecha.value > maxD) {
+      inpFecha.value = ayerISO();
     }
     setMsg("", "");
     if (typeof dlg.showModal === "function") dlg.showModal();
@@ -132,8 +132,8 @@
     btnSave.addEventListener("click", async function () {
       if (!inpFecha || !selCond) return;
       const fecha = inpFecha.value;
-      if (!fecha || fecha >= hoyISO()) {
-        setMsg(t("registroFechaPasada"), "error");
+      if (!fecha || fecha > hoyISO()) {
+        setMsg(t("registroFechaInvalida"), "error");
         return;
       }
       const conductor = selCond.value;

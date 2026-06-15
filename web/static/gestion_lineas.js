@@ -44,6 +44,17 @@
     return r.statusText || t("errorGeneric");
   }
 
+  function esAdmin() {
+    return typeof auth !== "undefined" && auth && auth.userType === "admin";
+  }
+
+  function lineasParaSelector(lineas) {
+    if (esAdmin()) return lineas;
+    return lineas.filter(function (row) {
+      return row.visible !== false;
+    });
+  }
+
   async function fetchLineas() {
     const r = await apiFetch("/lineas");
     if (!r.ok) throw new Error(await parseError(r));
@@ -52,20 +63,37 @@
   }
 
   function poblarSelector(lineas) {
+    const visibles = lineasParaSelector(lineas);
     const actual = window.trenLinea.getLineaId();
     selLinea.innerHTML = "";
-    lineas.forEach(function (row) {
+    visibles.forEach(function (row) {
       const opt = document.createElement("option");
       opt.value = String(row.id);
       opt.textContent = row.nombre;
       selLinea.appendChild(opt);
     });
-    const ids = lineas.map(function (x) {
+    const ids = visibles.map(function (x) {
       return x.id;
     });
-    const elegido = ids.indexOf(actual) >= 0 ? actual : lineas[0] ? lineas[0].id : 1;
+    const elegido = ids.indexOf(actual) >= 0 ? actual : visibles[0] ? visibles[0].id : 1;
     selLinea.value = String(elegido);
     window.trenLinea.setLineaId(elegido);
+  }
+
+  async function toggleVisible(row, visible) {
+    setMsg(t("updating"), "");
+    try {
+      const r = await apiFetch("/lineas/" + row.id + "/visible", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visible: visible }),
+      });
+      if (!r.ok) throw new Error(await parseError(r));
+      await refreshLineas(true);
+      setMsg(t("lineaVisibleSaved"), "ok");
+    } catch (e) {
+      setMsg(String(e.message || e), "error");
+    }
   }
 
   function renderListaAdmin(lineas) {
@@ -77,6 +105,25 @@
       const nameSpan = document.createElement("span");
       nameSpan.textContent = row.nombre + " (#" + row.id + ")";
       li.appendChild(nameSpan);
+
+      const visibleWrap = document.createElement("label");
+      visibleWrap.className = "linea-visible-wrap";
+      const chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.checked = row.visible !== false;
+      chk.disabled = row.id === 1;
+      chk.setAttribute("data-i18n-aria", "lineaVisibleLabel");
+      chk.title = t("lineaVisibleLabel");
+      chk.addEventListener("change", function () {
+        void toggleVisible(row, chk.checked);
+      });
+      const visibleTxt = document.createElement("span");
+      visibleTxt.setAttribute("data-i18n", "lineaVisibleLabel");
+      visibleTxt.textContent = t("lineaVisibleLabel");
+      visibleWrap.appendChild(chk);
+      visibleWrap.appendChild(visibleTxt);
+      li.appendChild(visibleWrap);
+
       const actions = document.createElement("span");
       actions.className = "linea-admin-actions";
       if (row.id !== 1) {

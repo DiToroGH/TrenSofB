@@ -86,7 +86,7 @@ class TestMigrations(unittest.TestCase):
 
         lineas = repo.listar_lineas()
         self.assertEqual(len(lineas), 1)
-        self.assertEqual(lineas[0], (LINEA_SOFB_ID, LINEA_SOFB_NOMBRE))
+        self.assertEqual(lineas[0], (LINEA_SOFB_ID, LINEA_SOFB_NOMBRE, True))
 
         conductores = repo.cargar_conductores(LINEA_SOFB_ID)
         self.assertEqual(conductores, ["CondA", "CondB"])
@@ -118,5 +118,5 @@ class TestMigrations(unittest.TestCase):
         repo.STATE_FILE = os.path.join(self.tmp.name, "fresh.json")
         repo.inicializar_db()
         lineas = repo.listar_lineas()
-        self.assertTrue(any(n == LINEA_SOFB_NOMBRE for _id, n in lineas))
+        self.assertTrue(any(n == LINEA_SOFB_NOMBRE for _id, n, _v in lineas))
         self.assertGreater(len(repo.cargar_conductores()), 0)

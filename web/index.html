@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SofB Train — Web</title>
+  <title>Train Schedule — Web</title>
   <link rel="stylesheet" href="/static/styles.css?v=20260526" />
 </head>
 <body>
@@ -11,8 +11,8 @@
   <div id="login-screen" class="login-screen">
     <div class="login-container">
       <header class="header">
-        <h1>SofB Train</h1>
-        <p class="subtitle" data-i18n="loginSubtitle">Sistema de asignaciones</p>
+        <h1 data-i18n="brandTitle">Train Schedule</h1>
+        <p class="subtitle" data-i18n="brandByline">By Di Toro</p>
       </header>
 
       <div class="login-lang-wrap">
@@ -51,7 +51,7 @@
   <div id="main-screen" class="main-screen" style="display: none;">
     <header class="header">
       <div class="header-top">
-        <h1>SofB Train</h1>
+        <h1 data-i18n="brandTitle">Train Schedule</h1>
         <p class="subtitle" data-i18n="brandByline">By Di Toro</p>
       </div>
       <div class="header-actions">
@@ -123,7 +123,7 @@
       </section>
 
       <div id="grid-hoy-asignaciones" class="grid-2">
-        <section id="card-disponibilidad" class="card">
+        <section id="card-disponibilidad" class="card" hidden aria-hidden="true">
           <h2 data-i18n="availabilityTitle">Disponibilidad (hoy)</h2>
           <p class="hint" data-i18n="availabilityHint">Marcá quiénes pueden ir. Por defecto todos disponibles.</p>
           <div id="checks" class="checks"></div>

@@ -857,6 +857,7 @@
     window.__trenLastEstado = data;
     if (registroPorFecha != null) {
       lastRegistroPorFecha = registroPorFecha;
+      window.__trenLastRegistroPorFecha = registroPorFecha;
     }
     fechaEl.textContent = data.fecha || t("dash");
 
@@ -960,7 +961,7 @@
   document.getElementById("btn-generar").addEventListener("click", async () => {
     setMsg(t("generating"), "");
     try {
-      const body = { disponibles: disponiblesSeleccionados() };
+      const body = {};
       const r = await apiFetch("/asignacion/generar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

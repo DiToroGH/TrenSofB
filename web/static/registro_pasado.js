@@ -99,13 +99,31 @@
     });
   }
 
+  function fechaConfirmadaParaEdicion(fecha) {
+    const data = window.__trenLastEstado;
+    if (!data) return false;
+    if (window.__trenLastRegistroPorFecha) {
+      const reg = window.__trenLastRegistroPorFecha[fecha];
+      if (reg && String(reg.conductor || "").trim()) return true;
+    }
+    const fechaEstado = String(data.fecha || "").trim().slice(0, 10);
+    if (fechaEstado !== fecha) return false;
+    return Array.isArray(data.asignaciones) && data.asignaciones.length > 0;
+  }
+
   function abrirDialogo() {
     if (!dlg || !inpFecha) return;
     rellenarSelects();
     const maxD = hoyISO();
     inpFecha.max = maxD;
-    if (!inpFecha.value || inpFecha.value > maxD) {
-      inpFecha.value = ayerISO();
+    const data = window.__trenLastEstado;
+    const fechaEstado = data && data.fecha ? String(data.fecha).trim().slice(0, 10) : "";
+    if (fechaEstado && fechaEstado <= maxD && fechaConfirmadaParaEdicion(fechaEstado)) {
+      inpFecha.value = fechaEstado;
+    } else if (!inpFecha.value || inpFecha.value > maxD) {
+      inpFecha.value = maxD <= hoyISO() && fechaConfirmadaParaEdicion(maxD)
+        ? maxD
+        : ayerISO();
     }
     setMsg("", "");
     if (typeof dlg.showModal === "function") dlg.showModal();
@@ -134,6 +152,10 @@
       const fecha = inpFecha.value;
       if (!fecha || fecha > hoyISO()) {
         setMsg(t("registroFechaInvalida"), "error");
+        return;
+      }
+      if (fecha === hoyISO() && !fechaConfirmadaParaEdicion(fecha)) {
+        setMsg(t("registroHoySinConfirmar"), "error");
         return;
       }
       const conductor = selCond.value;

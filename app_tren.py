@@ -23,7 +23,7 @@ from infra.state_sync import persistir_orden_sqlite_acompaniantes_desde_estado
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("SofB Train Management. By Di Toro")
+        self.title("Train Schedule Management. By Di Toro")
         self.geometry("980x620")
         repo.inicializar_db()
         self.conductores = repo.cargar_conductores()

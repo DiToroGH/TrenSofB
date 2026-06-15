@@ -79,7 +79,7 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(
-    title="SofB Train API",
+    title="Train Schedule API",
     description="Misma lógica y archivos que la app de escritorio.",
     lifespan=lifespan,
 )
@@ -217,6 +217,25 @@ def _personas_linea(linea_id: int) -> set[str]:
     return set(repo.cargar_conductores(linea_id)) | set(
         repo.cargar_acompaniantes(linea_id)
     )
+
+
+def _fecha_editable_en_registro(f: str, linea_id: int) -> bool:
+    """Pasado: siempre. Hoy: si hay registro guardado o asignación confirmada en estado."""
+    f_date = date.fromisoformat(f)
+    hoy = date.today()
+    if f_date > hoy:
+        return False
+    if f_date < hoy:
+        return True
+    if repo.registro_dia_existe(f, linea_id):
+        return True
+    estado = repo.cargar_estado(linea_id)
+    fecha_estado = str(estado.get("fecha") or "").strip()[:10]
+    if fecha_estado != f:
+        return False
+    raw_asig = estado.get("asignaciones_hoy")
+    resultados = asignaciones_desde_json(raw_asig if isinstance(raw_asig, list) else None)
+    return bool(resultados)
 
 
 @app.get("/health")
@@ -620,17 +639,10 @@ def actualizar_registro_dia_pasado(
 ):
     _ = admin_user
     f = _normalizar_fecha_iso(fecha.strip())
-    f_date = date.fromisoformat(f)
-    hoy = date.today()
-    if f_date > hoy:
+    if not _fecha_editable_en_registro(f, linea_id):
         raise HTTPException(
             status_code=400,
-            detail="No se pueden editar fechas futuras.",
-        )
-    if f_date == hoy and not repo.registro_dia_existe(f, linea_id):
-        raise HTTPException(
-            status_code=400,
-            detail="Hoy solo se puede editar si el día ya está confirmado.",
+            detail="Hoy solo se puede editar si el día ya está confirmado (registro o asignación generada).",
         )
     conductor = str(body.conductor or "").strip()
     if not conductor:

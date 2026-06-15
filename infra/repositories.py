@@ -374,8 +374,6 @@ def linea_es_visible(linea_id: int) -> bool:
 
 
 def set_linea_visible(linea_id: int, visible: bool) -> None:
-    if linea_id == LINEA_SOFB_ID and not visible:
-        raise ValueError("La línea SofB debe permanecer visible.")
     conn = sqlite3.connect(DB_FILE)
     try:
         cur = conn.cursor()

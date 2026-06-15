@@ -140,8 +140,8 @@ class AuthManager {
       const lineasBtn = document.getElementById('btn-gestion-lineas');
       if (lineasBtn) lineasBtn.style.display = 'inline-block';
       if (regPasadoBtn) regPasadoBtn.style.display = 'block';
-      if (cardDisp) cardDisp.style.display = '';
-      if (gridHoy) gridHoy.classList.remove('grid-2--solo-asignaciones');
+      if (cardDisp) cardDisp.style.display = 'none';
+      if (gridHoy) gridHoy.classList.add('grid-2--solo-asignaciones');
       if (mensajeTa) mensajeTa.readOnly = false;
       if (mensajeHint) mensajeHint.style.display = '';
       if (btnGuardarMsg) btnGuardarMsg.style.display = '';

@@ -12,7 +12,8 @@
 
   const STRINGS = {
     es: {
-      appTitle: "SofB Train — Web",
+      appTitle: "Train Schedule — Web",
+      brandTitle: "Train Schedule",
       loginSubtitle: "Sistema de asignaciones",
       loginHeading: "Iniciar sesión",
       labelUsername: "Usuario:",
@@ -46,6 +47,7 @@
       lineaSofbProtected: "Línea base (no eliminable)",
       lineaVisibleLabel: "Visible para usuarios",
       lineaVisibleSaved: "Visibilidad actualizada.",
+      lineaNoneVisible: "Ninguna línea visible",
       lineaRenamePrompt: "Nuevo nombre de la línea:",
       lineaDeleteConfirm: "¿Eliminar la línea «{nombre}»? Solo si está vacía.",
       lineaRenamed: "Línea renombrada.",
@@ -194,7 +196,8 @@
       errorGeneric: "Error",
     },
     en: {
-      appTitle: "SofB Train — Web",
+      appTitle: "Train Schedule — Web",
+      brandTitle: "Train Schedule",
       loginSubtitle: "Assignment system",
       loginHeading: "Sign in",
       labelUsername: "Username:",
@@ -227,6 +230,7 @@
       lineaSofbProtected: "Base line (cannot delete)",
       lineaVisibleLabel: "Visible to users",
       lineaVisibleSaved: "Visibility updated.",
+      lineaNoneVisible: "No visible lines",
       lineaRenamePrompt: "New line name:",
       lineaDeleteConfirm: "Delete line «{nombre}»? Only if empty.",
       lineaRenamed: "Line renamed.",
@@ -373,7 +377,8 @@
       errorGeneric: "Error",
     },
     pt: {
-      appTitle: "SofB Train — Web",
+      appTitle: "Train Schedule — Web",
+      brandTitle: "Train Schedule",
       loginSubtitle: "Sistema de atribuições",
       loginHeading: "Entrar",
       labelUsername: "Usuário:",
@@ -406,6 +411,7 @@
       lineaSofbProtected: "Linha base (não eliminável)",
       lineaVisibleLabel: "Visível para utilizadores",
       lineaVisibleSaved: "Visibilidade atualizada.",
+      lineaNoneVisible: "Nenhuma linha visível",
       lineaRenamePrompt: "Novo nome da linha:",
       lineaDeleteConfirm: "Eliminar a linha «{nombre}»? Só se estiver vazia.",
       lineaRenamed: "Linha renomeada.",

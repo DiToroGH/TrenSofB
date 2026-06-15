@@ -66,6 +66,15 @@
     const visibles = lineasParaSelector(lineas);
     const actual = window.trenLinea.getLineaId();
     selLinea.innerHTML = "";
+    if (!visibles.length) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.disabled = true;
+      opt.selected = true;
+      opt.textContent = t("lineaNoneVisible");
+      selLinea.appendChild(opt);
+      return;
+    }
     visibles.forEach(function (row) {
       const opt = document.createElement("option");
       opt.value = String(row.id);
@@ -111,7 +120,6 @@
       const chk = document.createElement("input");
       chk.type = "checkbox";
       chk.checked = row.visible !== false;
-      chk.disabled = row.id === 1;
       chk.setAttribute("data-i18n-aria", "lineaVisibleLabel");
       chk.title = t("lineaVisibleLabel");
       chk.addEventListener("change", function () {

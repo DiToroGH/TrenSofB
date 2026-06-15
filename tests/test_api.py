@@ -45,7 +45,7 @@ class TestApiAislada(unittest.TestCase):
     def test_index_y_static(self):
         r = self.client.get("/")
         self.assertEqual(r.status_code, 200)
-        self.assertIn(b"SofB Train", r.content)
+        self.assertIn(b"Train Schedule", r.content)
         r2 = self.client.get("/static/app.js")
         self.assertEqual(r2.status_code, 200)
         r3 = self.client.get("/static/gestion_personas.js")
@@ -287,6 +287,14 @@ class TestApiAislada(unittest.TestCase):
         self.assertEqual(r_fail.status_code, 400)
 
         self.client.post("/asignacion/generar", json={}, headers=h)
+        r_asig = self.client.put(
+            f"/registro/dia/{hoy}",
+            json={"conductor": cond, "acompanante": None},
+            headers=h,
+        )
+        self.assertEqual(r_asig.status_code, 200, r_asig.text)
+        self.assertEqual(r_asig.json()["fecha"], hoy)
+
         self.client.post("/dia/cerrar", headers=h)
 
         r_ok = self.client.put(
@@ -329,7 +337,17 @@ class TestApiAislada(unittest.TestCase):
             json={"visible": False},
             headers=ha,
         )
-        self.assertEqual(r_hide.status_code, 400)
+        self.assertEqual(r_hide.status_code, 200)
+        r_hide2 = self.client.patch(
+            f"/lineas/{linea_id}/visible",
+            json={"visible": False},
+            headers=ha,
+        )
+        self.assertEqual(r_hide2.status_code, 200)
+
+        r_user3 = self.client.get("/lineas", headers=hu)
+        self.assertEqual(r_user3.status_code, 200)
+        self.assertEqual(len(r_user3.json()), 0)
 
     def test_conductores_fijos_semana(self):
         h = _admin_auth_headers(self.client)

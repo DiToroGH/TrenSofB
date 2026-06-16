@@ -135,6 +135,50 @@
     });
   }
 
+  function csvEscape(value) {
+    const s = String(value == null ? "" : value);
+    if (/[",\n\r]/.test(s)) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  function nombreArchivoCsv(base) {
+    const safe = String(base || "linea")
+      .replace(/[^\w\-]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 40);
+    const fecha = new Date().toISOString().slice(0, 10);
+    return "acompaniantes-" + (safe || "linea") + "-" + fecha + ".csv";
+  }
+
+  async function exportarAcompaniantesCsv() {
+    await fetchAcompaniantes();
+    if (!acompaniantes.length) {
+      setMsgG(t("exportCsvEmpty"), "error");
+      return;
+    }
+    const estado = window.__trenLastEstado || {};
+    const lineaNombre = estado.linea_nombre || "linea";
+    const header = [t("exportCsvColOrden"), t("exportCsvColNombre")]
+      .map(csvEscape)
+      .join(",");
+    const rows = acompaniantes.map(function (p, i) {
+      return [String(i + 1), p.nombre].map(csvEscape).join(",");
+    });
+    const contenido = "\uFEFF" + [header].concat(rows).join("\r\n");
+    const blob = new Blob([contenido], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = nombreArchivoCsv(lineaNombre);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setMsgG(t("exportCsvDone"), "ok");
+  }
+
   async function fetchAcompaniantes() {
     const r = await apiFetch("/personas/acompaniantes");
     if (!r.ok) throw new Error(await parseError(r));
@@ -379,6 +423,15 @@
 
   wireAcciones("cond");
   wireAcciones("acomp");
+
+  document.getElementById("acomp-export-csv").addEventListener("click", async function () {
+    try {
+      setMsgG(t("updating"), "");
+      await exportarAcompaniantesCsv();
+    } catch (e) {
+      setMsgG(String(e.message || e), "error");
+    }
+  });
 
   document.getElementById("acomp-masiva").addEventListener("click", async function () {
     try {

@@ -278,6 +278,46 @@ Desde una versión reciente de `deploy.sh`, el script descarta esos cambios loca
 
 ---
 
+## 14. HTTPS (quitar “No seguro” en el navegador)
+
+Acceder por **IP y HTTP** (`http://146.235.37.235`) es normal que el navegador marque la página como **no segura** y que falle `navigator.clipboard` (copiar mensaje). Para HTTPS hace falta un **dominio** apuntando a la VM; Let's Encrypt **no emite certificados para IP suelta**.
+
+### Pasos recomendados
+
+1. **Dominio:** registrá un subdominio (ej. `tren.tudominio.com`) con registro **A** → IP pública de la instancia.
+2. **Security List OCI:** abrir **443/TCP** además del 80.
+3. **Nginx + Certbot** en la VM (el contenedor Docker sigue en el puerto 8000 interno):
+
+```bash
+sudo apt-get update
+sudo apt-get install -y nginx certbot python3-certbot-nginx
+sudo tee /etc/nginx/sites-available/tren <<'EOF'
+server {
+    listen 80;
+    server_name tren.tudominio.com;
+    location / {
+        proxy_pass http://127.0.0.1:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+EOF
+sudo ln -sf /etc/nginx/sites-available/tren /etc/nginx/sites-enabled/tren
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d tren.tudominio.com
+```
+
+4. Entrá siempre por **`https://tren.tudominio.com`**. El certificado se renueva solo.
+
+### Sin dominio (solo IP)
+
+- La app usa **fallback** al copiar (selección + `execCommand`) en HTTP; puede funcionar al hacer clic en *Copiar mensaje*.
+- Para eliminar el aviso “No seguro” sin dominio no hay solución estándar con certificado público de confianza.
+
+---
+
 ## Referencia rápida de variables
 
 | Variable | En OCI con este `docker run` |

@@ -1058,6 +1058,29 @@
     });
   }
 
+  function copyTextToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        if (document.execCommand("copy")) resolve();
+        else reject(new Error("copy failed"));
+      } catch (e) {
+        reject(e);
+      } finally {
+        document.body.removeChild(ta);
+      }
+    });
+  }
+
   document.getElementById("btn-copiar").addEventListener("click", async () => {
     const txt = mensajeEl.value.trim();
     if (!txt) {
@@ -1065,7 +1088,7 @@
       return;
     }
     try {
-      await navigator.clipboard.writeText(txt);
+      await copyTextToClipboard(txt);
       setMsg(t("copied"), "ok");
     } catch (_) {
       setMsg(t("copyFailed"), "error");

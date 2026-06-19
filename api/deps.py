@@ -28,3 +28,15 @@ def get_linea_id_for_user(
     if not is_admin(current_user) and not repo.linea_es_visible(linea_id):
         raise HTTPException(status_code=403, detail="Línea no disponible.")
     return linea_id
+
+
+def get_locale(
+    lang: str | None = Query(None, description="Idioma de la interfaz (es, en, pt)"),
+    x_lang: str | None = Header(None, alias="X-Lang"),
+) -> str:
+    raw = (lang or x_lang or "es").strip().lower()
+    if raw.startswith("pt"):
+        return "pt"
+    if raw.startswith("en"):
+        return "en"
+    return "es"

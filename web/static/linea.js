@@ -22,8 +22,11 @@
 
   function applyAuthHeaders(fetchOptions) {
     const opts = Object.assign({ cache: "no-store" }, fetchOptions || {});
+    if (!opts.headers) opts.headers = {};
+    if (typeof window.trenI18n !== "undefined" && window.trenI18n.getLang) {
+      opts.headers["X-Lang"] = window.trenI18n.getLang();
+    }
     if (typeof auth !== "undefined" && auth && auth.token) {
-      if (!opts.headers) opts.headers = {};
       opts.headers.Authorization = "Bearer " + auth.token;
     }
     return opts;

@@ -271,6 +271,21 @@ class TestApiAislada(unittest.TestCase):
         self.assertEqual(r2.status_code, 200, r2.text)
         self.assertEqual(r2.json()["conductor"], acomp)
 
+    def test_put_registro_dia_conductor_como_vip(self):
+        h = _admin_auth_headers(self.client)
+        r = self.client.get("/estado/hoy", headers=h)
+        cond = r.json()["conductores"][0]
+        from datetime import date, timedelta
+
+        pasado = (date.today() - timedelta(days=4)).isoformat()
+        r2 = self.client.put(
+            f"/registro/dia/{pasado}",
+            json={"conductor": cond, "acompanante": cond},
+            headers=h,
+        )
+        self.assertEqual(r2.status_code, 200, r2.text)
+        self.assertEqual(r2.json()["acompanante"], cond)
+
     def test_put_registro_dia_hoy_confirmado(self):
         from datetime import date
 

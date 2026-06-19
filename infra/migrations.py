@@ -20,6 +20,7 @@ _STATE_KEYS = (
     "asignaciones_hoy",
     "disponibles_hoy",
     "mensaje_turno",
+    "mensaje_turno_manual",
     "segundo_acompanante_hoy",
 )
 

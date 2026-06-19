@@ -24,42 +24,47 @@ def fusionar_orden_acompaniantes_con_db(
     return [a for a in orden_actual if a in acompaniantes_db] + faltantes
 
 
-MAX_RESPALDOS_MENSAJE = 9
+def normalizar_locale(locale: str | None) -> str:
+    if not locale:
+        return "es"
+    loc = str(locale).strip().lower()
+    if loc.startswith("pt"):
+        return "pt"
+    if loc.startswith("en"):
+        return "en"
+    return "es"
 
-_ENGLISH_COUNT_WORDS: dict[int, str] = {
-    1: "one",
-    2: "two",
-    3: "three",
-    4: "four",
-    5: "five",
-    6: "six",
-    7: "seven",
-    8: "eight",
-    9: "nine",
-    10: "ten",
-    11: "eleven",
-    12: "twelve",
+
+_TURN_MSG_VIP = {
+    "es": (
+        "Hola {conductor}, hoy te toca conducir el tren y tu pasajero VIP es {acomp}. "
+        "Contactalo con anticipación para coordinar horarios. Di Toro."
+    ),
+    "en": (
+        "Hello {conductor}, tonight it's your turn to drive the train, and your VIP "
+        "passenger is {acomp}. Try to contact them ahead of time and coordinate the "
+        "schedule so they'll be ready. Di Toro."
+    ),
+    "pt": (
+        "Olá {conductor}, hoje é sua vez de conduzir o trem e seu passageiro VIP é "
+        "{acomp}. Entre em contato com antecedência para combinar horários. Di Toro."
+    ),
 }
 
-
-def _respaldos_en_orden(acomp: str, circulo: list[str]) -> list[str]:
-    """Hasta 9 reemplazos en orden circular después del VIP (sin repetir al VIP)."""
-    if not circulo:
-        return []
-    if acomp == "SIN ACOMPAÑANTE" or acomp not in circulo:
-        return list(circulo)[:MAX_RESPALDOS_MENSAJE]
-    if len(circulo) == 1:
-        return []
-    idx = circulo.index(acomp)
-    n = len(circulo)
-    todos = [circulo[(idx + k) % n] for k in range(1, n)]
-    return todos[:MAX_RESPALDOS_MENSAJE]
-
-
-def _total_contactos_fallo(acomp: str, respaldos: list[str]) -> int:
-    if acomp and acomp != "SIN ACOMPAÑANTE":
-        return 1 + len(respaldos)
-    return len(respaldos)
+_TURN_MSG_SIN_VIP = {
+    "es": (
+        "Hola {conductor}, hoy te toca conducir el tren sin acompañante VIP asignado. "
+        "Di Toro."
+    ),
+    "en": (
+        "Hello {conductor}, tonight it's your turn to drive the train with no VIP "
+        "companion assigned. Di Toro."
+    ),
+    "pt": (
+        "Olá {conductor}, hoje é sua vez de conduzir o trem sem acompanhante VIP "
+        "atribuído. Di Toro."
+    ),
+}
 
 
 def generar_texto_turno(
@@ -68,31 +73,14 @@ def generar_texto_turno(
     orden_acompaniantes: list[str],
     *,
     disponibles: set[str] | frozenset[str] | None = None,
+    locale: str | None = None,
 ) -> str:
-    """Si `disponibles` no es None, la lista de reemplazos solo incluye gente disponible hoy."""
-    orden = list(orden_acompaniantes)
-    if disponibles is not None:
-        circulo = [x for x in orden if x in disponibles]
-    else:
-        circulo = orden
-
-    respaldos = _respaldos_en_orden(acomp, circulo)
-    lista_respaldos = ", ".join(respaldos)
-    total = _total_contactos_fallo(acomp, respaldos)
-    total_word = _ENGLISH_COUNT_WORDS.get(total, str(total))
-
-    cuerpo = (
-        f"Hello {conductor} , tonight it's your turn to drive the train, and your VIP passenger is "
-        f"{acomp} . Try to contact them ahead of time and coordinate the schedule so they'll be ready. "
-    )
-    if respaldos:
-        cuerpo += (
-            f"If you don't get a response from {acomp}, the replacement are this {lista_respaldos} . "
-            f"If all {total_word} fail, let me know 😅. Di Toro."
-        )
-    else:
-        cuerpo += f"If you don't get a response from {acomp}, let me know 😅. Di Toro."
-    return cuerpo
+    """Plantilla del mensaje de turno (sin lista de reemplazos)."""
+    _ = orden_acompaniantes, disponibles
+    loc = normalizar_locale(locale)
+    if not str(acomp or "").strip() or acomp == "SIN ACOMPAÑANTE":
+        return _TURN_MSG_SIN_VIP[loc].format(conductor=conductor)
+    return _TURN_MSG_VIP[loc].format(conductor=conductor, acomp=acomp)
 
 
 def calcular_mensaje_turno_automatico(
@@ -101,13 +89,20 @@ def calcular_mensaje_turno_automatico(
     resultados: list[tuple[str, str]],
     *,
     disponibles: set[str] | frozenset[str] | None = None,
+    locale: str | None = None,
 ) -> str | None:
     if resultados:
         c, a = resultados[0]
-        return generar_texto_turno(c, a, orden_acompaniantes, disponibles=disponibles)
+        return generar_texto_turno(
+            c, a, orden_acompaniantes, disponibles=disponibles, locale=locale
+        )
     if conductores and orden_acompaniantes:
         return generar_texto_turno(
-            conductores[0], orden_acompaniantes[0], orden_acompaniantes, disponibles=disponibles
+            conductores[0],
+            orden_acompaniantes[0],
+            orden_acompaniantes,
+            disponibles=disponibles,
+            locale=locale,
         )
     return None
 
@@ -117,15 +112,22 @@ def resolver_mensaje_turno(
     conductores: list[str],
     orden_acompaniantes: list[str],
     resultados: list[tuple[str, str]],
+    *,
+    locale: str | None = None,
 ) -> str | None:
-    """Mensaje guardado en estado, o plantilla automática si no hay uno personalizado."""
-    guardado = estado.get("mensaje_turno")
-    if isinstance(guardado, str) and guardado.strip():
-        return guardado.strip()
+    """Mensaje editado manualmente, o plantilla automática en el idioma pedido."""
+    if estado.get("mensaje_turno_manual"):
+        guardado = estado.get("mensaje_turno")
+        if isinstance(guardado, str) and guardado.strip():
+            return guardado.strip()
     raw_disp = estado.get("disponibles_hoy")
     disp_msg = set(raw_disp) if isinstance(raw_disp, list) else None
     return calcular_mensaje_turno_automatico(
-        conductores, orden_acompaniantes, resultados, disponibles=disp_msg
+        conductores,
+        orden_acompaniantes,
+        resultados,
+        disponibles=disp_msg,
+        locale=locale,
     )
 
 

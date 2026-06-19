@@ -64,7 +64,7 @@
     const conductores = data.conductores || [];
     const orden = data.acompaniantes_orden || [];
     const vistos = {};
-    const todosConductores = [];
+    const todasPersonas = [];
 
     function agregarNombre(nombre) {
       const n = String(nombre || "").trim();
@@ -72,14 +72,14 @@
       const clave = n.toLowerCase();
       if (vistos[clave]) return;
       vistos[clave] = true;
-      todosConductores.push(n);
+      todasPersonas.push(n);
     }
 
     conductores.forEach(agregarNombre);
     orden.forEach(agregarNombre);
 
     selCond.innerHTML = "";
-    todosConductores.forEach(function (nombre) {
+    todasPersonas.forEach(function (nombre) {
       const o = document.createElement("option");
       o.value = nombre;
       o.textContent = nombre;
@@ -91,7 +91,7 @@
     oNone.value = "";
     oNone.textContent = t("registroSinVip");
     selVip.appendChild(oNone);
-    orden.forEach(function (nombre) {
+    todasPersonas.forEach(function (nombre) {
       const o = document.createElement("option");
       o.value = nombre;
       o.textContent = nombre;

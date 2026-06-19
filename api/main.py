@@ -34,7 +34,7 @@ from core.auth import (
     is_admin,
     get_current_user,
 )
-from api.deps import get_linea_id_for_user
+from api.deps import get_linea_id_for_user, get_locale
 from api.lineas import router as lineas_router
 from api.personas import router as personas_router
 from infra import repositories as repo
@@ -293,6 +293,7 @@ def estado_hoy(
     response: Response,
     current_user: TokenData = Depends(get_current_user),
     linea_id: int = Depends(get_linea_id_for_user),
+    locale: str = Depends(get_locale),
 ):
     response.headers["Cache-Control"] = "no-store, max-age=0, must-revalidate"
     response.headers["Pragma"] = "no-cache"
@@ -302,7 +303,9 @@ def estado_hoy(
     orden = estado.get("acompaniantes_orden", [])
     raw_asig = estado.get("asignaciones_hoy")
     resultados = asignaciones_desde_json(raw_asig if isinstance(raw_asig, list) else None)
-    mensaje = resolver_mensaje_turno(estado, conductores, orden, resultados)
+    mensaje = resolver_mensaje_turno(
+        estado, conductores, orden, resultados, locale=locale
+    )
 
     conductores_items: list[ConductorItem] = []
     acompaniantes_items: list[AcompanianteItem] = []
@@ -378,6 +381,7 @@ def generar_asignacion_endpoint(
     body: GenerarAsignacionBody,
     admin_user: TokenData = Depends(get_admin_user),
     linea_id: int = Depends(get_linea_id_for_user),
+    locale: str = Depends(get_locale),
 ):
     _ = admin_user
     estado = repo.cargar_estado(linea_id)
@@ -413,12 +417,14 @@ def generar_asignacion_endpoint(
     sanitizar_segundo_acompaniante_estado(estado, vip_nuevo, orden)
     disp_turno = set(disponibles)
     mensaje_turno = calcular_mensaje_turno_automatico(
-        cond_orden, orden, asignaciones, disponibles=disp_turno
+        cond_orden, orden, asignaciones, disponibles=disp_turno, locale=locale
     )
     if mensaje_turno:
         estado["mensaje_turno"] = mensaje_turno
+        estado["mensaje_turno_manual"] = False
     else:
         estado.pop("mensaje_turno", None)
+        estado.pop("mensaje_turno_manual", None)
     repo.guardar_estado(estado, linea_id)
 
     return GenerarAsignacionResponse(
@@ -434,6 +440,7 @@ def generar_asignacion_endpoint(
 def cerrar_dia(
     admin_user: TokenData = Depends(get_admin_user),
     linea_id: int = Depends(get_linea_id_for_user),
+    locale: str = Depends(get_locale),
 ):
     _ = admin_user
     estado = repo.cargar_estado(linea_id)
@@ -494,16 +501,18 @@ def cerrar_dia(
     estado.pop("asignaciones_hoy", None)
     estado.pop("disponibles_hoy", None)
     estado.pop("mensaje_turno", None)
+    estado.pop("mensaje_turno_manual", None)
     repo.guardar_estado(estado, linea_id)
     persistir_orden_sqlite_acompaniantes_desde_estado(estado, linea_id)
 
     orden_after = estado.get("acompaniantes_orden", [])
     conductores_after = repo.cargar_conductores(linea_id)
     mensaje_turno = calcular_mensaje_turno_automatico(
-        conductores_after, orden_after, []
+        conductores_after, orden_after, [], locale=locale
     )
     if mensaje_turno:
         estado["mensaje_turno"] = mensaje_turno
+        estado["mensaje_turno_manual"] = False
         repo.guardar_estado(estado, linea_id)
 
     return CerrarDiaResponse(
@@ -580,6 +589,7 @@ def guardar_mensaje_turno(
     if not texto:
         raise HTTPException(status_code=400, detail="El mensaje no puede estar vacío.")
     estado["mensaje_turno"] = texto
+    estado["mensaje_turno_manual"] = True
     repo.guardar_estado(estado, linea_id)
     return {"mensaje_turno": texto}
 
@@ -588,6 +598,7 @@ def guardar_mensaje_turno(
 def regenerar_mensaje_turno(
     admin_user: TokenData = Depends(get_admin_user),
     linea_id: int = Depends(get_linea_id_for_user),
+    locale: str = Depends(get_locale),
 ):
     _ = admin_user
     estado = repo.cargar_estado(linea_id)
@@ -599,12 +610,14 @@ def regenerar_mensaje_turno(
     raw_disp = estado.get("disponibles_hoy")
     disp_msg = set(raw_disp) if isinstance(raw_disp, list) else None
     mensaje = calcular_mensaje_turno_automatico(
-        conductores, orden, resultados, disponibles=disp_msg
+        conductores, orden, resultados, disponibles=disp_msg, locale=locale
     )
     if mensaje:
         estado["mensaje_turno"] = mensaje
+        estado["mensaje_turno_manual"] = False
     else:
         estado.pop("mensaje_turno", None)
+        estado.pop("mensaje_turno_manual", None)
     repo.guardar_estado(estado, linea_id)
     return {"mensaje_turno": mensaje}
 
@@ -656,11 +669,10 @@ def actualizar_registro_dia_pasado(
     acomp: str | None = None
     if body.acompanante is not None and str(body.acompanante).strip():
         acomp = str(body.acompanante).strip()
-        acomps_ok = set(repo.cargar_acompaniantes(linea_id))
-        if acomp not in acomps_ok:
+        if acomp not in personas_ok:
             raise HTTPException(
                 status_code=400,
-                detail="El acompañante debe existir en la lista actual.",
+                detail="La persona debe existir en la lista actual (conductores o acompañantes).",
             )
     repo.upsert_registro_dia(f, conductor, acomp, linea_id)
     return RegistroDiaOut(fecha=f, conductor=conductor, acompanante=acomp)
